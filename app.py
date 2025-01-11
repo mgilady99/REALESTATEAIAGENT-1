@@ -12,7 +12,6 @@ import pandas as pd
 from config import Config
 import logging
 import asyncio
-from fb_scraper import FacebookScraper
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -198,23 +197,27 @@ def news():
         logger.error(f"Error in news route: {str(e)}")
         return render_template('error.html', error=str(e)), 500
 
-@app.route('/scrape/facebook')
-def scrape_facebook():
-    """Endpoint to trigger Facebook scraping"""
+@app.route('/scrape')
+async def scrape_properties():
+    """Endpoint to trigger property scraping"""
     try:
-        scraper = FacebookScraper()
-        properties = scraper.start_scraping()
-        return jsonify({
-            'status': 'success',
-            'message': f'Successfully scraped {len(properties)} properties from Facebook',
-            'count': len(properties)
-        })
+        scraper = RealEstateScraper()
+        properties = await scraper.scrape_all()
+        return jsonify({'status': 'success', 'count': len(properties)})
     except Exception as e:
-        logging.error(f"Error in Facebook scraping: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+        logger.error(f"Error in scrape_properties: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/scrape/news')
+async def scrape_news():
+    """Endpoint to trigger news scraping"""
+    try:
+        scraper = NewsScraperService()
+        news_items = await scraper.scrape_all()
+        return jsonify({'status': 'success', 'count': len(news_items)})
+    except Exception as e:
+        logger.error(f"Error in scrape_news: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     init_db()

@@ -1,7 +1,11 @@
 import os
 from dotenv import load_dotenv
+import requests
+import logging
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 class Config:
     # Flask configuration
@@ -210,6 +214,31 @@ class Config:
     ]
 
     # Facebook API configuration
-    FB_ACCESS_TOKEN = os.environ.get('FB_ACCESS_TOKEN')
+    FB_APP_ID = '476560225486976'
+    FB_APP_SECRET = '5c7dc5da3ee84b4f55d0386604a11cdb'
     FB_API_VERSION = 'v18.0'
-    FB_POSTS_LIMIT = 5  # Number of recent posts to fetch per group
+    FB_POSTS_LIMIT = 5
+
+    @classmethod
+    def init_facebook_token(cls):
+        """Initialize Facebook access token"""
+        try:
+            # Get long-lived access token
+            url = f'https://graph.facebook.com/oauth/access_token'
+            params = {
+                'client_id': cls.FB_APP_ID,
+                'client_secret': cls.FB_APP_SECRET,
+                'grant_type': 'client_credentials'
+            }
+            response = requests.get(url, params=params)
+            if response.status_code == 200:
+                data = response.json()
+                cls.FB_ACCESS_TOKEN = data['access_token']
+                logger.info('Successfully obtained Facebook access token')
+                return cls.FB_ACCESS_TOKEN
+            else:
+                logger.error(f'Failed to get Facebook access token: {response.text}')
+                return None
+        except Exception as e:
+            logger.error(f'Error initializing Facebook token: {str(e)}')
+            return None

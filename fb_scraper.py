@@ -5,6 +5,7 @@ import logging
 from models import db, Property
 from flask import current_app
 import json
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -12,9 +13,17 @@ logger = logging.getLogger(__name__)
 class FacebookScraper:
     def __init__(self):
         self.session = None
-        self.access_token = current_app.config['FB_ACCESS_TOKEN']
-        self.api_version = current_app.config['FB_API_VERSION']
+        self.config = current_app.config
+        self.access_token = None
+        self.api_version = self.config['FB_API_VERSION']
         self.base_url = f'https://graph.facebook.com/{self.api_version}'
+
+    async def initialize(self):
+        """Initialize the scraper with a valid access token"""
+        if not self.access_token:
+            self.access_token = self.config.init_facebook_token()
+            if not self.access_token:
+                raise Exception("Failed to initialize Facebook access token")
 
     async def create_session(self):
         if not self.session:
@@ -26,27 +35,32 @@ class FacebookScraper:
             await self.session.close()
             self.session = None
 
-    async def get_group_posts(self, group_id, limit=5):
-        """Fetch recent posts from a Facebook group"""
+    async def get_group_feed(self, group_id, limit=5):
+        """Fetch feed from a Facebook group"""
         try:
+            # Ensure we have a valid token
+            await self.initialize()
+            
             session = await self.create_session()
             url = f"{self.base_url}/{group_id}/feed"
             params = {
                 'access_token': self.access_token,
                 'limit': limit,
-                'fields': 'message,created_time,permalink_url,attachments'
+                'fields': 'message,created_time,permalink_url,attachments,from',
+                'include_hidden': 'true'
             }
 
             async with session.get(url, params=params) as response:
                 if response.status != 200:
-                    logger.error(f"Error fetching posts for group {group_id}: {response.status}")
+                    error_text = await response.text()
+                    logger.error(f"Error fetching group {group_id}: {error_text}")
                     return []
 
                 data = await response.json()
                 return data.get('data', [])
 
         except Exception as e:
-            logger.error(f"Error in get_group_posts for group {group_id}: {str(e)}")
+            logger.error(f"Error in get_group_feed for group {group_id}: {str(e)}")
             return []
 
     def extract_property_details(self, post):
@@ -98,7 +112,7 @@ class FacebookScraper:
     async def scrape_group(self, group):
         """Scrape posts from a single Facebook group"""
         try:
-            posts = await self.get_group_posts(group['id'], current_app.config['FB_POSTS_LIMIT'])
+            posts = await self.get_group_feed(group['id'], current_app.config['FB_POSTS_LIMIT'])
             properties = []
 
             for post in posts:

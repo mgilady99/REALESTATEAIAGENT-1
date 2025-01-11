@@ -50,20 +50,9 @@ async function handleSearchCriteriaSubmit(event) {
 
 // Initialize event listeners when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Update properties periodically
-    updateProperties();
-    setInterval(updateProperties, 60000); // Update every minute
-    
-    // Add form submit handler
-    const searchForm = document.getElementById('search-criteria-form');
-    if (searchForm) {
-        searchForm.addEventListener('submit', handleSearchCriteriaSubmit);
-    }
-    
     // Scraping action buttons
     const scrapeClassifiedBtn = document.getElementById('scrapeClassified');
     const scrapeNewsBtn = document.getElementById('scrapeNews');
-    const scrapeFacebookBtn = document.getElementById('scrapeFacebook');
     
     // Handle classified ads scraping
     if (scrapeClassifiedBtn) {
@@ -115,31 +104,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Handle Facebook scraping
-    if (scrapeFacebookBtn) {
-        scrapeFacebookBtn.addEventListener('click', async function() {
-            try {
-                scrapeFacebookBtn.disabled = true;
-                scrapeFacebookBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scraping Facebook...';
-                
-                const response = await fetch('/scrape/facebook');
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    showAlert('success', `Successfully scraped ${data.count} Facebook posts`);
-                    setTimeout(() => location.reload(), 2000);
-                } else {
-                    showAlert('error', 'Error scraping Facebook posts');
-                }
-            } catch (error) {
-                showAlert('error', 'Error scraping Facebook posts');
-            } finally {
-                scrapeFacebookBtn.disabled = false;
-                scrapeFacebookBtn.innerHTML = '<i class="fab fa-facebook"></i> Scrape Facebook Groups';
-            }
-        });
-    }
-    
     // Helper function to show alerts
     function showAlert(type, message) {
         const alertDiv = document.createElement('div');
@@ -152,5 +116,28 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Auto dismiss after 5 seconds
         setTimeout(() => alertDiv.remove(), 5000);
+    }
+    
+    // Update properties periodically
+    function updateProperties() {
+        fetch('/properties')
+            .then(response => response.json())
+            .then(data => {
+                const propertiesList = document.getElementById('propertiesList');
+                if (propertiesList) {
+                    propertiesList.innerHTML = data.html;
+                }
+            })
+            .catch(error => console.error('Error updating properties:', error));
+    }
+    
+    // Initialize periodic updates
+    updateProperties();
+    setInterval(updateProperties, 60000); // Update every minute
+    
+    // Add form submit handler
+    const searchForm = document.getElementById('search-criteria-form');
+    if (searchForm) {
+        searchForm.addEventListener('submit', handleSearchCriteriaSubmit);
     }
 });
