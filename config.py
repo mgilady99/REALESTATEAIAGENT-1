@@ -104,3 +104,112 @@ class Config:
             'type': 'commercial'
         }
     }
+
+    # Facebook Groups for scraping
+    FB_GROUPS = [
+        {
+            'id': '250636145007603',
+            'name': 'Real Estate Group 1',
+            'url': 'https://www.facebook.com/groups/250636145007603/'
+        },
+        {
+            'id': '226696460730867',
+            'name': 'Real Estate Group 2',
+            'url': 'https://www.facebook.com/groups/226696460730867'
+        },
+        {
+            'id': '736463973967742',
+            'name': 'Real Estate Group 3',
+            'url': 'https://www.facebook.com/groups/736463973967742'
+        },
+        {
+            'id': '920176614664761',
+            'name': 'Real Estate Group 4',
+            'url': 'https://www.facebook.com/groups/920176614664761'
+        },
+        {
+            'id': '581262349259655',
+            'name': 'Real Estate Group 5',
+            'url': 'https://www.facebook.com/groups/581262349259655'
+        },
+        {
+            'id': '1129392941752704',
+            'name': 'Real Estate Group 6',
+            'url': 'https://www.facebook.com/groups/1129392941752704'
+        },
+        {
+            'id': '163283720393199',
+            'name': 'Real Estate Group 7',
+            'url': 'https://www.facebook.com/groups/163283720393199'
+        },
+        {
+            'id': '2573303249362318',
+            'name': 'Real Estate Group 8',
+            'url': 'https://www.facebook.com/groups/2573303249362318'
+        },
+        {
+            'id': '371598040003608',
+            'name': 'Real Estate Group 9',
+            'url': 'https://www.facebook.com/groups/371598040003608'
+        },
+        {
+            'id': '1201360430008237',
+            'name': 'Real Estate Group 10',
+            'url': 'https://www.facebook.com/groups/1201360430008237'
+        },
+        {
+            'id': '5437631259682377',
+            'name': 'Real Estate Group 11',
+            'url': 'https://www.facebook.com/groups/5437631259682377'
+        },
+        {
+            'id': '396733623770714',
+            'name': 'Real Estate Group 12',
+            'url': 'https://www.facebook.com/groups/396733623770714'
+        },
+        {
+            'id': '712708313030571',
+            'name': 'Real Estate Group 13',
+            'url': 'https://www.facebook.com/groups/712708313030571'
+        },
+        {
+            'id': '456527333039080',
+            'name': 'Real Estate Group 14',
+            'url': 'https://www.facebook.com/groups/456527333039080'
+        },
+        {
+            'id': '336105114889885',
+            'name': 'Real Estate Group 15',
+            'url': 'https://www.facebook.com/groups/336105114889885'
+        },
+        {
+            'id': '175841076508597',
+            'name': 'Real Estate Group 16',
+            'url': 'https://www.facebook.com/groups/175841076508597'
+        },
+        {
+            'id': '1811109765814622',
+            'name': 'Real Estate Group 17',
+            'url': 'https://www.facebook.com/groups/1811109765814622'
+        },
+        {
+            'id': 'menivplus',
+            'name': 'Meniv Plus',
+            'url': 'https://www.facebook.com/menivplus'
+        },
+        {
+            'id': 'rentrishonby',
+            'name': 'Rent Rishon',
+            'url': 'https://www.facebook.com/groups/rentrishonby'
+        },
+        {
+            'id': '1711226185557597',
+            'name': 'Real Estate Group 20',
+            'url': 'https://www.facebook.com/groups/1711226185557597/'
+        }
+    ]
+
+    # Facebook API configuration
+    FB_ACCESS_TOKEN = os.environ.get('FB_ACCESS_TOKEN')
+    FB_API_VERSION = 'v18.0'
+    FB_POSTS_LIMIT = 5  # Number of recent posts to fetch per group

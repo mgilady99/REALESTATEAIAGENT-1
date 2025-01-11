@@ -12,6 +12,7 @@ import pandas as pd
 from config import Config
 import logging
 import asyncio
+from fb_scraper import FacebookScraper
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -196,6 +197,24 @@ def news():
     except Exception as e:
         logger.error(f"Error in news route: {str(e)}")
         return render_template('error.html', error=str(e)), 500
+
+@app.route('/scrape/facebook')
+def scrape_facebook():
+    """Endpoint to trigger Facebook scraping"""
+    try:
+        scraper = FacebookScraper()
+        properties = scraper.start_scraping()
+        return jsonify({
+            'status': 'success',
+            'message': f'Successfully scraped {len(properties)} properties from Facebook',
+            'count': len(properties)
+        })
+    except Exception as e:
+        logging.error(f"Error in Facebook scraping: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 if __name__ == '__main__':
     init_db()
