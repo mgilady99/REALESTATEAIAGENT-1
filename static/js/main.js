@@ -1,3 +1,7 @@
+// Global variables for URLs
+let propertyUrls = [];
+let newsUrls = [];
+
 // Function to fetch and update properties
 async function updateProperties() {
     try {
@@ -48,157 +52,222 @@ async function handleSearchCriteriaSubmit(event) {
     }
 }
 
-// Initialize event listeners when DOM is loaded
+// Load URLs when the page loads
 document.addEventListener('DOMContentLoaded', function() {
-    // Get buttons
-    const scrapeClassifiedBtn = document.getElementById('scrapeClassified');
-    const scrapeNewsBtn = document.getElementById('scrapeNews');
-
-    // Add click event listeners
-    if (scrapeClassifiedBtn) {
-        scrapeClassifiedBtn.addEventListener('click', async function() {
-            try {
-                scrapeClassifiedBtn.disabled = true;
-                scrapeClassifiedBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scraping...';
-                
-                const response = await fetch('/scrape', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    showAlert('success', 'Property scraping started successfully!');
-                    setTimeout(updateProperties, 5000); // Update properties after 5 seconds
-                } else {
-                    throw new Error(data.message || 'Failed to start property scraping');
-                }
-            } catch (error) {
-                showAlert('error', 'Error: ' + error.message);
-            } finally {
-                scrapeClassifiedBtn.disabled = false;
-                scrapeClassifiedBtn.innerHTML = '<i class="fas fa-search"></i> Scrape Property Ads';
-            }
-        });
-    }
-
-    if (scrapeNewsBtn) {
-        scrapeNewsBtn.addEventListener('click', async function() {
-            try {
-                scrapeNewsBtn.disabled = true;
-                scrapeNewsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scraping...';
-                
-                const response = await fetch('/scrape/news', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    showAlert('success', 'News scraping started successfully!');
-                    setTimeout(updateNews, 5000); // Update news after 5 seconds
-                } else {
-                    throw new Error(data.message || 'Failed to start news scraping');
-                }
-            } catch (error) {
-                showAlert('error', 'Error: ' + error.message);
-            } finally {
-                scrapeNewsBtn.disabled = false;
-                scrapeNewsBtn.innerHTML = '<i class="fas fa-newspaper"></i> Scrape News';
-            }
-        });
-    }
-
-    // Function to update properties list
-    async function updateProperties() {
-        try {
-            const response = await fetch('/api/properties');
-            const data = await response.json();
-            
-            if (response.ok) {
-                const propertiesList = document.getElementById('propertiesList');
-                if (propertiesList && data.properties && data.properties.length > 0) {
-                    propertiesList.innerHTML = data.properties.map(property => `
-                        <div class="col-md-6 col-lg-4 mb-4">
-                            <div class="card h-100">
-                                ${property.image_url ? `<img src="${property.image_url}" class="card-img-top" alt="Property Image">` : ''}
-                                <div class="card-body">
-                                    <h5 class="card-title">${property.title}</h5>
-                                    <p class="card-text">${property.description ? property.description.substring(0, 200) + '...' : ''}</p>
-                                    <p class="card-text">
-                                        <strong>Price:</strong> ${property.price}<br>
-                                        <strong>Location:</strong> ${property.location}<br>
-                                        <strong>Source:</strong> ${property.source}
-                                    </p>
-                                    ${property.url ? `<a href="${property.url}" class="btn btn-primary" target="_blank">View Details</a>` : ''}
-                                </div>
-                                <div class="card-footer text-muted">
-                                    Added: ${new Date(property.created_at).toLocaleString()}
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
-                }
-            }
-        } catch (error) {
-            console.error('Error updating properties:', error);
-        }
-    }
-
-    // Function to update news list
-    async function updateNews() {
-        try {
-            const response = await fetch('/api/news');
-            const data = await response.json();
-            
-            if (response.ok) {
-                const newsList = document.getElementById('newsList');
-                if (newsList && data.news_items && data.news_items.length > 0) {
-                    newsList.innerHTML = data.news_items.map(news => `
-                        <div class="col-md-6 mb-4">
-                            <div class="card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">${news.title}</h5>
-                                    <p class="card-text">${news.summary ? news.summary.substring(0, 200) + '...' : ''}</p>
-                                    <a href="${news.url}" class="btn btn-info text-white" target="_blank">Read More</a>
-                                </div>
-                                <div class="card-footer text-muted">
-                                    Published: ${new Date(news.published_at).toLocaleString()}
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
-                }
-            }
-        } catch (error) {
-            console.error('Error updating news:', error);
-        }
-    }
-
-    // Function to show alerts
-    function showAlert(type, message) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
-        alertDiv.style.zIndex = '1050';
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-        document.body.appendChild(alertDiv);
-        
-        // Remove alert after 5 seconds
-        setTimeout(() => {
-            alertDiv.remove();
-        }, 5000);
-    }
-
-    // Initial load of properties and news
-    updateProperties();
-    updateNews();
+    loadUrls();
+    setupScrapeButtons();
 });
+
+// Setup scrape buttons
+function setupScrapeButtons() {
+    document.getElementById('scrapeClassified').addEventListener('click', async function() {
+        const button = this;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scraping...';
+        
+        try {
+            const response = await fetch('/scrape', { method: 'POST' });
+            const data = await response.json();
+            
+            if (data.success) {
+                displayProperties(data.properties);
+            } else {
+                alert('Error: ' + data.message);
+            }
+        } catch (error) {
+            alert('Error during scraping: ' + error.message);
+        } finally {
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-search"></i> Scrape Property Ads';
+        }
+    });
+
+    document.getElementById('scrapeNews').addEventListener('click', async function() {
+        const button = this;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scraping News...';
+        
+        try {
+            const response = await fetch('/scrape/news', { method: 'POST' });
+            const data = await response.json();
+            
+            if (data.success) {
+                displayNews(data.news);
+            } else {
+                alert('Error: ' + data.message);
+            }
+        } catch (error) {
+            alert('Error during news scraping: ' + error.message);
+        } finally {
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-newspaper"></i> Scrape News';
+        }
+    });
+}
+
+// URL Management Functions
+async function loadUrls() {
+    try {
+        const response = await fetch('/api/urls');
+        const data = await response.json();
+        propertyUrls = data.property_urls || [];
+        newsUrls = data.news_urls || [];
+        updateUrlLists();
+    } catch (error) {
+        console.error('Error loading URLs:', error);
+    }
+}
+
+function updateUrlLists() {
+    const propertyList = document.getElementById('propertyUrlsList');
+    const newsList = document.getElementById('newsUrlsList');
+    
+    propertyList.innerHTML = propertyUrls.map((url, index) => createUrlListItem(url, index, 'property')).join('');
+    newsList.innerHTML = newsUrls.map((url, index) => createUrlListItem(url, index, 'news')).join('');
+}
+
+function createUrlListItem(url, index, type) {
+    return `
+        <div class="url-item">
+            <span class="url-text">${url}</span>
+            <div class="url-actions">
+                <button class="btn btn-sm btn-danger" onclick="removeUrl('${type}', ${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function addPropertyUrl() {
+    const input = document.getElementById('newPropertyUrl');
+    const url = input.value.trim();
+    if (url && !propertyUrls.includes(url)) {
+        propertyUrls.push(url);
+        updateUrlLists();
+        input.value = '';
+    }
+}
+
+function addNewsUrl() {
+    const input = document.getElementById('newNewsUrl');
+    const url = input.value.trim();
+    if (url && !newsUrls.includes(url)) {
+        newsUrls.push(url);
+        updateUrlLists();
+        input.value = '';
+    }
+}
+
+function removeUrl(type, index) {
+    if (type === 'property') {
+        propertyUrls.splice(index, 1);
+    } else {
+        newsUrls.splice(index, 1);
+    }
+    updateUrlLists();
+}
+
+async function saveUrls() {
+    try {
+        const response = await fetch('/api/urls', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                property_urls: propertyUrls,
+                news_urls: newsUrls
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            alert('URLs saved successfully!');
+            document.getElementById('urlManagerModal').querySelector('.btn-close').click();
+        } else {
+            alert('Error saving URLs: ' + data.message);
+        }
+    } catch (error) {
+        alert('Error saving URLs: ' + error.message);
+    }
+}
+
+// Display Functions
+function displayProperties(properties) {
+    const container = document.getElementById('propertiesList');
+    if (!properties || properties.length === 0) {
+        container.innerHTML = '<div class="col-12"><p class="text-center">No properties found.</p></div>';
+        return;
+    }
+
+    container.innerHTML = properties.map(property => `
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                ${property.image_url ? 
+                    `<img src="${property.image_url}" class="card-img-top" alt="${property.title}" style="height: 200px; object-fit: cover;">` :
+                    '<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">No Image</div>'
+                }
+                <div class="card-body">
+                    <h5 class="card-title">${property.title}</h5>
+                    <p class="card-text">
+                        <strong>Price:</strong> ${property.price ? `₪${property.price.toLocaleString()}` : 'N/A'}<br>
+                        <strong>Location:</strong> ${property.location || 'N/A'}
+                    </p>
+                    ${property.url ? 
+                        `<a href="${property.url}" target="_blank" class="btn btn-primary">View Details</a>` :
+                        '<button class="btn btn-primary" disabled>No Link Available</button>'
+                    }
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function displayNews(news) {
+    const container = document.getElementById('newsList');
+    if (!news || news.length === 0) {
+        container.innerHTML = '<div class="col-12"><p class="text-center">No news articles found.</p></div>';
+        return;
+    }
+
+    container.innerHTML = news.map(article => `
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                ${article.image_url ? 
+                    `<img src="${article.image_url}" class="card-img-top" alt="${article.title}" style="height: 200px; object-fit: cover;">` :
+                    '<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">No Image</div>'
+                }
+                <div class="card-body">
+                    <h5 class="card-title">${article.title}</h5>
+                    <p class="card-text">${article.description || 'No description available.'}</p>
+                    <p class="card-text"><small class="text-muted">Source: ${article.source}</small></p>
+                    ${article.url ? 
+                        `<a href="${article.url}" target="_blank" class="btn btn-primary">Read More</a>` :
+                        '<button class="btn btn-primary" disabled>No Link Available</button>'
+                    }
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Function to show alerts
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    alertDiv.style.zIndex = '1050';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    // Remove alert after 5 seconds
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+// Initial load of properties and news
+updateProperties();

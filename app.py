@@ -243,6 +243,106 @@ def update_urls():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+URLS_FILE = 'scraping_urls.json'
+
+def load_urls():
+    try:
+        if os.path.exists(URLS_FILE):
+            with open(URLS_FILE, 'r') as f:
+                return json.load(f)
+        return {'property_urls': [], 'news_urls': []}
+    except Exception as e:
+        app.logger.error(f"Error loading URLs: {e}")
+        return {'property_urls': [], 'news_urls': []}
+
+def save_urls(urls):
+    try:
+        with open(URLS_FILE, 'w') as f:
+            json.dump(urls, f)
+        return True
+    except Exception as e:
+        app.logger.error(f"Error saving URLs: {e}")
+        return False
+
+@app.route('/api/urls', methods=['GET', 'POST'])
+def manage_urls():
+    if request.method == 'GET':
+        return jsonify(load_urls())
+    
+    if request.method == 'POST':
+        data = request.json
+        if save_urls(data):
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'message': 'Failed to save URLs'})
+
+@app.route('/scrape', methods=['POST'])
+async def scrape_properties():
+    try:
+        urls = load_urls()
+        property_urls = urls.get('property_urls', [])
+        
+        if not property_urls:
+            return jsonify({
+                'success': False,
+                'message': 'No property URLs configured. Please add URLs in the URL manager.'
+            })
+        
+        scraper = RealEstateScraper()
+        properties = await scraper.scrape_urls(property_urls)
+        
+        return jsonify({
+            'success': True,
+            'properties': properties
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error in scrape_properties: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
+@app.route('/scrape/news', methods=['POST'])
+async def scrape_news():
+    try:
+        urls = load_urls()
+        news_urls = urls.get('news_urls', [])
+        
+        if not news_urls:
+            return jsonify({
+                'success': False,
+                'message': 'No news URLs configured. Please add URLs in the URL manager.'
+            })
+        
+        news_scraper = NewsScraperService()
+        news_articles = await news_scraper.scrape_news(news_urls)
+        
+        return jsonify({
+            'success': True,
+            'news': news_articles
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error in scrape_news: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
+@app.route('/api/properties', methods=['GET'])
+def get_properties():
+    try:
+        properties = Property.query.order_by(Property.date_scraped.desc()).limit(50).all()
+        return jsonify({
+            'success': True,
+            'properties': [prop.to_dict() for prop in properties]
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
 if __name__ == '__main__':
     init_db()
     setup_scheduler()
