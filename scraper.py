@@ -14,7 +14,12 @@ class RealEstateScraper:
     def __init__(self):
         self.session = None
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Cache-Control': 'max-age=0'
         }
 
     async def create_session(self):
@@ -35,10 +40,16 @@ class RealEstateScraper:
     def extract_price(self, text):
         if not text:
             return None
-        # Look for price patterns (handles both ₪ and $ formats)
-        price_match = re.search(r'[\d,]+(?:\.\d{2})?(?=\s*[₪$])|(?<=[$₪]\s*)[\d,]+(?:\.\d{2})?', text)
+        # Look for numbers followed by currency symbols or currency symbols followed by numbers
+        price_pattern = r'\d{1,3}(?:,\d{3})*(?:\.\d{2})?(?:\s*[$₪€])|[$₪€]\s*\d{1,3}(?:,\d{3})*(?:\.\d{2})?'
+        price_match = re.search(price_pattern, text)
         if price_match:
-            return price_match.group().replace(',', '')
+            # Extract just the numbers
+            number_str = re.sub(r'[^\d.]', '', price_match.group())
+            try:
+                return float(number_str)
+            except ValueError:
+                return None
         return None
 
     def extract_location(self, text):
@@ -51,7 +62,7 @@ class RealEstateScraper:
     async def scrape_url(self, url):
         try:
             session = await self.create_session()
-            async with session.get(url) as response:
+            async with session.get(url, timeout=30) as response:
                 if response.status != 200:
                     logger.error(f"Failed to fetch {url}: {response.status}")
                     return []
@@ -65,7 +76,7 @@ class RealEstateScraper:
                 selectors = [
                     '.property-item', '.listing-item', '.real-estate-item',
                     '[class*="property"]', '[class*="listing"]', '[class*="apartment"]',
-                    'article', '.card', '.item'
+                    'article', '.card', '.item', '.feed-item', '.search-result'
                 ]
                 
                 for selector in selectors:
@@ -74,15 +85,17 @@ class RealEstateScraper:
                         for listing in listings:
                             try:
                                 # Extract title
-                                title_elem = listing.find(['h1', 'h2', 'h3', 'h4', '.title', '[class*="title"]'])
+                                title_elem = listing.find(['h1', 'h2', 'h3', 'h4', '.title', '[class*="title"]', '[class*="header"]'])
                                 title = self.clean_text(title_elem.text) if title_elem else None
                                 
                                 # Extract price
-                                price_elem = listing.find(text=re.compile(r'[$₪]\s*[\d,]+|[\d,]+\s*[$₪]'))
-                                price = self.extract_price(price_elem) if price_elem else None
+                                price_pattern = r'(?:[\d,]+(?:\.\d{2})?(?=\s*[₪$€])|(?<=[$₪€]\s*)[\d,]+(?:\.\d{2})?)'
+                                price_text = listing.get_text()
+                                price_match = re.search(price_pattern, price_text)
+                                price = float(re.sub(r'[^\d.]', '', price_match.group())) if price_match else None
                                 
                                 # Extract location
-                                location_elem = listing.find(['address', '.location', '[class*="location"]'])
+                                location_elem = listing.find(['address', '.location', '[class*="location"]', '[class*="address"]'])
                                 location = self.extract_location(location_elem.text) if location_elem else None
                                 
                                 # Extract URL
