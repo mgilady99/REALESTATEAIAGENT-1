@@ -243,6 +243,17 @@ def update_urls():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# Add URLs you provided
+app.config['PROPERTY_URLS'] = [
+    "https://www.globes.co.il/GlobesBoard/",
+    "https://menivim.net/",
+    "https://shorturl.at/Khx3S",
+    "https://shorturl.at/5hMsS",
+    "https://shorturl.at/0IBGQ",
+    "https://gevarom.co.il/properties/",
+    "https://www.komo.co.il/"
+]
+
 URLS_FILE = 'scraping_urls.json'
 
 def load_urls():
@@ -360,4 +371,4 @@ def get_news():
 if __name__ == '__main__':
     init_db()
     setup_scheduler()
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(host='0.0.0.0', port=3001)  # Changed port to 3001
