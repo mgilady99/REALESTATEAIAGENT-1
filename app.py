@@ -17,10 +17,26 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Configure SQLAlchemy
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config.from_object(Config)
 
 # Initialize extensions
 db.init_app(app)
+
+# Ensure the instance folder exists
+try:
+    os.makedirs(app.instance_path)
+except OSError:
+    pass
+
+# Create the database file if it doesn't exist
+with app.app_context():
+    if not os.path.exists('app.db'):
+        db.create_all()
+        logger.info("Database created successfully")
 
 def init_db():
     """Initialize database"""
@@ -58,11 +74,12 @@ def setup_scheduler():
 def home():
     """Home page"""
     try:
-        properties = Property.query.order_by(Property.date_scraped.desc()).limit(10).all()
+        # Return empty list if no properties yet
+        properties = Property.query.order_by(Property.date_scraped.desc()).limit(10).all() or []
         return render_template('index.html', properties=properties)
     except Exception as e:
         logger.error(f"Error in home route: {str(e)}")
-        return "Internal Server Error", 500
+        return render_template('error.html', error="Database initialization in progress. Please try again in a few moments."), 500
 
 @app.route('/properties')
 def properties():
@@ -75,7 +92,7 @@ def properties():
         return render_template('properties.html', properties=properties)
     except Exception as e:
         logger.error(f"Error in properties route: {str(e)}")
-        return "Internal Server Error", 500
+        return render_template('error.html', error=str(e)), 500
 
 @app.route('/search-criteria', methods=['GET', 'POST'])
 def search_criteria():
@@ -100,7 +117,7 @@ def search_criteria():
         return render_template('search_criteria.html', criteria=criteria_list)
     except Exception as e:
         logger.error(f"Error in search_criteria route: {str(e)}")
-        return "Internal Server Error", 500
+        return render_template('error.html', error=str(e)), 500
 
 @app.route('/api/properties')
 def api_properties():
@@ -141,7 +158,7 @@ def export_properties():
         return send_file(csv_file, as_attachment=True)
     except Exception as e:
         logger.error(f"Error in export route: {str(e)}")
-        return "Internal Server Error", 500
+        return render_template('error.html', error=str(e)), 500
 
 @app.route('/logs')
 def view_logs():
@@ -151,7 +168,7 @@ def view_logs():
         return render_template('logs.html', logs=logs)
     except Exception as e:
         logger.error(f"Error in logs route: {str(e)}")
-        return "Internal Server Error", 500
+        return render_template('error.html', error=str(e)), 500
 
 if __name__ == '__main__':
     init_db()
