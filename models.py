@@ -45,6 +45,33 @@ class News(db.Model):
             'date_scraped': self.date_scraped.isoformat() if self.date_scraped else None
         }
 
+class Property(db.Model):
+    __tablename__ = 'properties'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    price = db.Column(db.Float)
+    location = db.Column(db.String(255))
+    property_type = db.Column(db.String(50))  # E.g., 'apartment', 'office', etc.
+    date_listed = db.Column(db.DateTime, default=datetime.utcnow)
+    image_url = db.Column(db.String(1000))
+
+    def __repr__(self):
+        return f'<Property {self.title}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'description': self.description,
+            'price': self.price,
+            'location': self.location,
+            'property_type': self.property_type,
+            'date_listed': self.date_listed.isoformat() if self.date_listed else None,
+            'image_url': self.image_url
+        }
+
 class ScrapingLog(db.Model):
     __tablename__ = 'scraping_logs'
 
