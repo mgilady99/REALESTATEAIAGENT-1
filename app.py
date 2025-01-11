@@ -1,13 +1,20 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 import os
+import json
 from scraper import RealEstateScraper
 from models import db, Property, SearchCriteria, ScrapingLog
 from sheets_handler import GoogleSheetsHandler
 import pandas as pd
 from config import Config
+import logging
+import asyncio
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -17,132 +24,136 @@ db.init_app(app)
 
 def init_db():
     """Initialize database"""
-    with app.app_context():
-        db.create_all()
+    try:
+        with app.app_context():
+            db.create_all()
+            logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Error initializing database: {str(e)}")
 
 def start_scraper():
     """Initialize and start the scraper"""
-    with app.app_context():
+    try:
         scraper = RealEstateScraper()
-        listings = scraper.run()
-        
-        # Log scraping activity
-        log = ScrapingLog(
-            website="all",
-            end_time=datetime.utcnow(),
-            status="success" if listings else "failed",
-            items_scraped=len(listings),
-            items_new=len(listings)
-        )
-        db.session.add(log)
-        db.session.commit()
+        # Get URLs from config
+        urls = app.config.get('URLS', [])
+        if urls and urls[0]:  # Check if URLs list is not empty and first item is not empty
+            asyncio.run(scraper.scrape_urls(urls))
+        logger.info("Scraper started successfully")
+    except Exception as e:
+        logger.error(f"Error starting scraper: {str(e)}")
 
 def setup_scheduler():
     """Setup scheduled tasks"""
-    scheduler = BackgroundScheduler()
-    
-    # Add scraping jobs
-    if Config.SCRAPING_INTERVALS['hourly']:
-        scheduler.add_job(start_scraper, 'interval', hours=1)
-    if Config.SCRAPING_INTERVALS['daily']:
-        scheduler.add_job(start_scraper, 'cron', hour=9)  # Run at 9 AM
-    if Config.SCRAPING_INTERVALS['weekly']:
-        scheduler.add_job(start_scraper, 'cron', day_of_week='mon', hour=9)  # Run Mondays at 9 AM
-        
-    scheduler.start()
+    try:
+        scheduler = BackgroundScheduler()
+        interval = app.config.get('SCRAPING_INTERVAL', 3600)  # Default to 1 hour
+        scheduler.add_job(start_scraper, 'interval', seconds=interval)
+        scheduler.start()
+        logger.info(f"Scheduler started with interval: {interval} seconds")
+    except Exception as e:
+        logger.error(f"Error setting up scheduler: {str(e)}")
 
 @app.route('/')
 def home():
     """Home page"""
-    return render_template('index.html')
+    try:
+        properties = Property.query.order_by(Property.date_scraped.desc()).limit(10).all()
+        return render_template('index.html', properties=properties)
+    except Exception as e:
+        logger.error(f"Error in home route: {str(e)}")
+        return "Internal Server Error", 500
 
 @app.route('/properties')
 def properties():
     """List properties"""
-    page = request.args.get('page', 1, type=int)
-    per_page = 20
-    
-    # Apply filters
-    query = Property.query
-    
-    if request.args.get('min_price'):
-        query = query.filter(Property.price >= float(request.args.get('min_price')))
-    if request.args.get('max_price'):
-        query = query.filter(Property.price <= float(request.args.get('max_price')))
-    if request.args.get('property_type'):
-        query = query.filter(Property.property_type == request.args.get('property_type'))
-    if request.args.get('location'):
-        query = query.filter(Property.location.ilike(f"%{request.args.get('location')}%"))
-        
-    properties = query.order_by(Property.date_scraped.desc()).paginate(page=page, per_page=per_page)
-    return render_template('properties.html', properties=properties)
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = 20
+        properties = Property.query.order_by(Property.date_scraped.desc()).paginate(
+            page=page, per_page=per_page, error_out=False)
+        return render_template('properties.html', properties=properties)
+    except Exception as e:
+        logger.error(f"Error in properties route: {str(e)}")
+        return "Internal Server Error", 500
 
 @app.route('/search-criteria', methods=['GET', 'POST'])
 def search_criteria():
     """Manage search criteria"""
-    if request.method == 'POST':
-        data = request.json
-        criteria = SearchCriteria(
-            name=data['name'],
-            min_price=data.get('min_price'),
-            max_price=data.get('max_price'),
-            min_size=data.get('min_size'),
-            max_size=data.get('max_size'),
-            property_types=','.join(data.get('property_types', [])),
-            locations=','.join(data.get('locations', [])),
-            keywords=','.join(data.get('keywords', [])),
-            notification_email=data.get('notification_email'),
-            is_active=True
-        )
-        db.session.add(criteria)
-        db.session.commit()
-        return jsonify({'message': 'Search criteria added successfully'})
-    
-    criteria_list = SearchCriteria.query.all()
-    return render_template('search_criteria.html', criteria=criteria_list)
+    try:
+        if request.method == 'POST':
+            data = request.form
+            criteria = SearchCriteria(
+                name=data.get('name'),
+                min_price=float(data.get('min_price', 0)),
+                max_price=float(data.get('max_price', 0)),
+                locations=data.get('locations'),
+                keywords=data.get('keywords'),
+                is_active=bool(data.get('is_active')),
+                notification_email=data.get('notification_email')
+            )
+            db.session.add(criteria)
+            db.session.commit()
+            return redirect(url_for('search_criteria'))
+        
+        criteria_list = SearchCriteria.query.all()
+        return render_template('search_criteria.html', criteria=criteria_list)
+    except Exception as e:
+        logger.error(f"Error in search_criteria route: {str(e)}")
+        return "Internal Server Error", 500
 
 @app.route('/api/properties')
 def api_properties():
     """API endpoint for properties"""
-    properties = Property.query.order_by(Property.date_scraped.desc()).limit(100).all()
-    return jsonify([{
-        'id': p.id,
-        'title': p.title,
-        'price': p.price,
-        'location': p.location,
-        'size': p.size,
-        'property_type': p.property_type,
-        'url': p.url,
-        'source_website': p.source_website,
-        'date_scraped': p.date_scraped.isoformat()
-    } for p in properties])
+    try:
+        properties = Property.query.order_by(Property.date_scraped.desc()).limit(50).all()
+        return jsonify({
+            'status': 'success',
+            'properties': [{
+                'title': p.title,
+                'price': p.price,
+                'location': p.location,
+                'url': p.url,
+                'date_listed': p.date_listed.isoformat() if p.date_listed else None
+            } for p in properties]
+        })
+    except Exception as e:
+        logger.error(f"Error in api_properties route: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/export-properties')
+@app.route('/export')
 def export_properties():
     """Export properties to CSV"""
-    properties = Property.query.all()
-    df = pd.DataFrame([{
-        'Title': p.title,
-        'Price': p.price,
-        'Location': p.location,
-        'Size': p.size,
-        'Type': p.property_type,
-        'URL': p.url,
-        'Source': p.source_website,
-        'Date Scraped': p.date_scraped
-    } for p in properties])
-    
-    csv_file = 'properties_export.csv'
-    df.to_csv(csv_file, index=False)
-    return send_file(csv_file, as_attachment=True)
+    try:
+        properties = Property.query.all()
+        df = pd.DataFrame([{
+            'title': p.title,
+            'price': p.price,
+            'location': p.location,
+            'size': p.size,
+            'url': p.url,
+            'date_listed': p.date_listed,
+            'date_scraped': p.date_scraped
+        } for p in properties])
+        
+        csv_file = 'properties_export.csv'
+        df.to_csv(csv_file, index=False)
+        return send_file(csv_file, as_attachment=True)
+    except Exception as e:
+        logger.error(f"Error in export route: {str(e)}")
+        return "Internal Server Error", 500
 
 @app.route('/logs')
 def view_logs():
     """View scraping logs"""
-    logs = ScrapingLog.query.order_by(ScrapingLog.start_time.desc()).limit(100).all()
-    return render_template('logs.html', logs=logs)
+    try:
+        logs = ScrapingLog.query.order_by(ScrapingLog.start_time.desc()).limit(100).all()
+        return render_template('logs.html', logs=logs)
+    except Exception as e:
+        logger.error(f"Error in logs route: {str(e)}")
+        return "Internal Server Error", 500
 
 if __name__ == '__main__':
     init_db()
     setup_scheduler()
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

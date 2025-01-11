@@ -1,0 +1,38 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Scraping Logs</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Status</th>
+                            <th>Items Scraped</th>
+                            <th>New Items</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr class="{% if log.status == 'failed' %}table-danger{% elif log.status == 'success' %}table-success{% endif %}">
+                            <td>{{ log.start_time.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td>{{ log.end_time.strftime('%Y-%m-%d %H:%M:%S') if log.end_time }}</td>
+                            <td>{{ log.status }}</td>
+                            <td>{{ log.items_scraped }}</td>
+                            <td>{{ log.items_new }}</td>
+                            <td>{{ log.error_message }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

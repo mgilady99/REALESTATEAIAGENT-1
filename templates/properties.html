@@ -1,0 +1,93 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Properties</h2>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Filters</h5>
+            <form method="GET" action="{{ url_for('properties') }}" class="row g-3">
+                <div class="col-md-3">
+                    <label for="min_price" class="form-label">Min Price</label>
+                    <input type="number" class="form-control" id="min_price" name="min_price" value="{{ request.args.get('min_price', '') }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="max_price" class="form-label">Max Price</label>
+                    <input type="number" class="form-control" id="max_price" name="max_price" value="{{ request.args.get('max_price', '') }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="location" class="form-label">Location</label>
+                    <input type="text" class="form-control" id="location" name="location" value="{{ request.args.get('location', '') }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary d-block">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Properties Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Price</th>
+                            <th>Location</th>
+                            <th>Size</th>
+                            <th>Date Listed</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for property in properties.items %}
+                        <tr>
+                            <td>{{ property.title }}</td>
+                            <td>{{ property.price }}</td>
+                            <td>{{ property.location }}</td>
+                            <td>{{ property.size }}</td>
+                            <td>{{ property.date_listed.strftime('%Y-%m-%d') if property.date_listed }}</td>
+                            <td>
+                                <a href="{{ property.url }}" target="_blank" class="btn btn-sm btn-primary">View</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if properties.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('properties', page=properties.prev_num) }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in properties.iter_pages(left_edge=2, left_current=2, right_current=2, right_edge=2) %}
+                        {% if page_num %}
+                            <li class="page-item {% if page_num == properties.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('properties', page=page_num) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if properties.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('properties', page=properties.next_num) }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}

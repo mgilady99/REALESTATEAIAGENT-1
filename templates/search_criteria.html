@@ -1,0 +1,93 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Search Criteria</h2>
+    
+    <!-- Add New Criteria Form -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Add New Search Criteria</h5>
+            <form method="POST" action="{{ url_for('search_criteria') }}" id="search-criteria-form">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="name" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="notification_email" class="form-label">Notification Email</label>
+                        <input type="email" class="form-control" id="notification_email" name="notification_email">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="min_price" class="form-label">Min Price</label>
+                        <input type="number" class="form-control" id="min_price" name="min_price">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="max_price" class="form-label">Max Price</label>
+                        <input type="number" class="form-control" id="max_price" name="max_price">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="locations" class="form-label">Locations (comma-separated)</label>
+                        <input type="text" class="form-control" id="locations" name="locations">
+                    </div>
+                    <div class="col-12">
+                        <label for="keywords" class="form-label">Keywords (comma-separated)</label>
+                        <input type="text" class="form-control" id="keywords" name="keywords">
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
+                            <label class="form-check-label" for="is_active">Active</label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Add Criteria</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Existing Criteria List -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Existing Search Criteria</h5>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Price Range</th>
+                            <th>Locations</th>
+                            <th>Keywords</th>
+                            <th>Status</th>
+                            <th>Email</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for criterion in criteria %}
+                        <tr>
+                            <td>{{ criterion.name }}</td>
+                            <td>{{ criterion.min_price }} - {{ criterion.max_price }}</td>
+                            <td>{{ criterion.locations }}</td>
+                            <td>{{ criterion.keywords }}</td>
+                            <td>
+                                <span class="badge {% if criterion.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ 'Active' if criterion.is_active else 'Inactive' }}
+                                </span>
+                            </td>
+                            <td>{{ criterion.notification_email }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-warning">Edit</button>
+                                <button class="btn btn-sm btn-danger">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
