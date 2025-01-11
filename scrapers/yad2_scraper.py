@@ -10,11 +10,11 @@ import json
 import time
 import asyncio
 
-class Yad2Scraper:
-    """Scraper for Yad2 real estate listings"""
+class GLOBSScraper:
+    """Scraper for Globes real estate listings"""
     
     def __init__(self):
-        self.base_url = "https://www.yad2.co.il"
+        self.base_url = "https://www.globes.co.il/GlobesBoard/"			
         self.setup_logging()
 
     def setup_logging(self):
@@ -27,7 +27,7 @@ class Yad2Scraper:
         try:
             # Implement actual scraping logic here
             # This is a placeholder that returns empty results
-            self.logger.info("Starting Yad2 scraping")
+            self.logger.info("Starting globes scraping")
             await asyncio.sleep(1)  # Simulate some work
             return []
         except Exception as e:
