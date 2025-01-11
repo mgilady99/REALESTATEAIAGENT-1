@@ -6,7 +6,7 @@ import os
 import json
 from scraper import RealEstateScraper
 from news_scraper import NewsScraperService
-from models import db, Property, SearchCriteria, ScrapingLog, NewsArticle
+from models import db, Property, SearchCriteria, ScrapingLog, News
 from sheets_handler import GoogleSheetsHandler
 import pandas as pd
 from config import Config
@@ -192,7 +192,7 @@ def news():
     """Display real estate news"""
     try:
         # Get latest news articles
-        news_articles = NewsArticle.query.order_by(NewsArticle.scraped_date.desc()).all()
+        news_articles = News.query.order_by(News.date_scraped.desc()).all()
         return render_template('news.html', articles=news_articles)
     except Exception as e:
         logger.error(f"Error in news route: {str(e)}")
@@ -336,6 +336,20 @@ def get_properties():
         return jsonify({
             'success': True,
             'properties': [prop.to_dict() for prop in properties]
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
+@app.route('/api/news', methods=['GET'])
+def get_news():
+    try:
+        news = News.query.order_by(News.date_scraped.desc()).limit(50).all()
+        return jsonify({
+            'success': True,
+            'news': [article.to_dict() for article in news]
         })
     except Exception as e:
         return jsonify({
