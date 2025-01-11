@@ -5,7 +5,8 @@ from datetime import datetime
 import os
 import json
 from scraper import RealEstateScraper
-from models import db, Property, SearchCriteria, ScrapingLog
+from news_scraper import NewsScraperService
+from models import db, Property, SearchCriteria, ScrapingLog, NewsArticle
 from sheets_handler import GoogleSheetsHandler
 import pandas as pd
 from config import Config
@@ -51,22 +52,37 @@ def start_scraper():
     """Initialize and start the scraper"""
     try:
         scraper = RealEstateScraper()
-        # Get URLs from config
         urls = app.config.get('URLS', [])
         if urls and urls[0]:  # Check if URLs list is not empty and first item is not empty
             asyncio.run(scraper.scrape_urls(urls))
-        logger.info("Scraper started successfully")
+        logger.info("Property scraper started successfully")
     except Exception as e:
-        logger.error(f"Error starting scraper: {str(e)}")
+        logger.error(f"Error starting property scraper: {str(e)}")
+
+def start_news_scraper():
+    """Initialize and start the news scraper"""
+    try:
+        news_scraper = NewsScraperService()
+        news_scraper.start_news_scraping()
+        logger.info("News scraper started successfully")
+    except Exception as e:
+        logger.error(f"Error starting news scraper: {str(e)}")
 
 def setup_scheduler():
     """Setup scheduled tasks"""
     try:
         scheduler = BackgroundScheduler()
-        interval = app.config.get('SCRAPING_INTERVAL', 3600)  # Default to 1 hour
-        scheduler.add_job(start_scraper, 'interval', seconds=interval)
+        
+        # Schedule property scraping
+        property_interval = app.config.get('SCRAPING_INTERVAL', 3600)  # Default to 1 hour
+        scheduler.add_job(start_scraper, 'interval', seconds=property_interval)
+        
+        # Schedule news scraping (every 30 minutes)
+        news_interval = 1800  # 30 minutes
+        scheduler.add_job(start_news_scraper, 'interval', seconds=news_interval)
+        
         scheduler.start()
-        logger.info(f"Scheduler started with interval: {interval} seconds")
+        logger.info(f"Scheduler started with property interval: {property_interval}s, news interval: {news_interval}s")
     except Exception as e:
         logger.error(f"Error setting up scheduler: {str(e)}")
 
@@ -168,6 +184,17 @@ def view_logs():
         return render_template('logs.html', logs=logs)
     except Exception as e:
         logger.error(f"Error in logs route: {str(e)}")
+        return render_template('error.html', error=str(e)), 500
+
+@app.route('/news')
+def news():
+    """Display real estate news"""
+    try:
+        # Get latest news articles
+        news_articles = NewsArticle.query.order_by(NewsArticle.scraped_date.desc()).all()
+        return render_template('news.html', articles=news_articles)
+    except Exception as e:
+        logger.error(f"Error in news route: {str(e)}")
         return render_template('error.html', error=str(e)), 500
 
 if __name__ == '__main__':

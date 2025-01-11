@@ -93,27 +93,260 @@ class RealEstateScraper:
 
     async def parse_homeless(self, soup):
         properties = []
-        # Add specific parsing logic for Homeless
+        try:
+            # Find all property listings
+            listings = soup.select('.property-item')
+            
+            for listing in listings:
+                try:
+                    # Extract basic information
+                    title_elem = listing.select_one('.property-title')
+                    title = self.clean_text(title_elem.text) if title_elem else None
+                    
+                    price_elem = listing.select_one('.property-price')
+                    price = self.extract_price(price_elem.text) if price_elem else None
+                    
+                    location_elem = listing.select_one('.property-location')
+                    location = self.clean_text(location_elem.text) if location_elem else None
+                    
+                    details_elem = listing.select_one('.property-details')
+                    description = self.clean_text(details_elem.text) if details_elem else None
+                    
+                    url_elem = listing.select_one('a.property-link')
+                    url = url_elem['href'] if url_elem else None
+                    
+                    if url:  # Only add if we have a valid URL
+                        property_data = Property(
+                            title=title,
+                            price=price,
+                            location=location,
+                            description=description,
+                            url=url,
+                            source_website='homeless',
+                            property_type='commercial',
+                            date_scraped=datetime.utcnow(),
+                            is_active=True
+                        )
+                        properties.append(property_data)
+                        
+                except Exception as e:
+                    logger.error(f"Error parsing Homeless listing: {str(e)}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Error in parse_homeless: {str(e)}")
+        
         return properties
 
     async def parse_madlan(self, soup):
         properties = []
-        # Add specific parsing logic for Madlan
+        try:
+            # Find all property listings
+            listings = soup.select('.property-card')
+            
+            for listing in listings:
+                try:
+                    # Extract basic information
+                    title_elem = listing.select_one('.property-title')
+                    title = self.clean_text(title_elem.text) if title_elem else None
+                    
+                    price_elem = listing.select_one('.property-price')
+                    price = self.extract_price(price_elem.text) if price_elem else None
+                    
+                    location_elem = listing.select_one('.property-location')
+                    location = self.clean_text(location_elem.text) if location_elem else None
+                    
+                    size_elem = listing.select_one('.property-size')
+                    size = float(size_elem.text.split()[0]) if size_elem else None
+                    
+                    url_elem = listing.select_one('a.property-link')
+                    url = url_elem['href'] if url_elem else None
+                    
+                    if url and not url.startswith('http'):
+                        url = 'https://www.madlan.co.il' + url
+                    
+                    if url:  # Only add if we have a valid URL
+                        property_data = Property(
+                            title=title,
+                            price=price,
+                            location=location,
+                            size=size,
+                            url=url,
+                            source_website='madlan',
+                            property_type='commercial',
+                            date_scraped=datetime.utcnow(),
+                            is_active=True
+                        )
+                        properties.append(property_data)
+                        
+                except Exception as e:
+                    logger.error(f"Error parsing Madlan listing: {str(e)}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Error in parse_madlan: {str(e)}")
+        
         return properties
 
     async def parse_yad2(self, soup):
         properties = []
-        # Add specific parsing logic for Yad2
+        try:
+            # Find all property listings
+            listings = soup.select('div[data-test-id="feed-item"]')
+            
+            for listing in listings:
+                try:
+                    # Extract basic information
+                    title = self.clean_text(listing.select_one('span[data-test-id="feed-item-title"]').text)
+                    price_elem = listing.select_one('div[data-test-id="feed-item-price"]')
+                    price = self.extract_price(price_elem.text) if price_elem else None
+                    
+                    # Extract location
+                    location_elem = listing.select_one('div[data-test-id="feed-item-subtitle"]')
+                    location = self.clean_text(location_elem.text) if location_elem else None
+                    
+                    # Extract size
+                    size_elem = listing.select_one('div[data-test-id="feed-item-size"]')
+                    size = float(size_elem.text.split()[0]) if size_elem else None
+                    
+                    # Extract URL
+                    url_elem = listing.select_one('a[data-test-id="feed-item-link"]')
+                    url = 'https://www.yad2.co.il' + url_elem['href'] if url_elem else None
+                    
+                    # Extract description
+                    desc_elem = listing.select_one('div[data-test-id="feed-item-desc"]')
+                    description = self.clean_text(desc_elem.text) if desc_elem else None
+                    
+                    if url:  # Only add if we have a valid URL
+                        property_data = Property(
+                            title=title,
+                            price=price,
+                            location=location,
+                            size=size,
+                            url=url,
+                            description=description,
+                            source_website='yad2',
+                            property_type='commercial',
+                            date_scraped=datetime.utcnow(),
+                            is_active=True
+                        )
+                        properties.append(property_data)
+                        
+                except Exception as e:
+                    logger.error(f"Error parsing Yad2 listing: {str(e)}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Error in parse_yad2: {str(e)}")
+        
         return properties
 
     async def parse_gevarom(self, soup):
         properties = []
-        # Add specific parsing logic for Geva Rom
+        try:
+            # Find all property listings
+            listings = soup.select('.property-listing')
+            
+            for listing in listings:
+                try:
+                    # Extract basic information
+                    title_elem = listing.select_one('.property-title')
+                    title = self.clean_text(title_elem.text) if title_elem else None
+                    
+                    price_elem = listing.select_one('.property-price')
+                    price = self.extract_price(price_elem.text) if price_elem else None
+                    
+                    location_elem = listing.select_one('.property-location')
+                    location = self.clean_text(location_elem.text) if location_elem else None
+                    
+                    size_elem = listing.select_one('.property-size')
+                    size = float(size_elem.text.split()[0]) if size_elem else None
+                    
+                    desc_elem = listing.select_one('.property-description')
+                    description = self.clean_text(desc_elem.text) if desc_elem else None
+                    
+                    url_elem = listing.select_one('a.property-link')
+                    url = url_elem['href'] if url_elem else None
+                    
+                    if url and not url.startswith('http'):
+                        url = 'https://gevarom.co.il' + url
+                    
+                    if url:  # Only add if we have a valid URL
+                        property_data = Property(
+                            title=title,
+                            price=price,
+                            location=location,
+                            size=size,
+                            description=description,
+                            url=url,
+                            source_website='gevarom',
+                            property_type='commercial',
+                            date_scraped=datetime.utcnow(),
+                            is_active=True
+                        )
+                        properties.append(property_data)
+                        
+                except Exception as e:
+                    logger.error(f"Error parsing Gevarom listing: {str(e)}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Error in parse_gevarom: {str(e)}")
+        
         return properties
 
     async def parse_komo(self, soup):
         properties = []
-        # Add specific parsing logic for Komo
+        try:
+            # Find all property listings
+            listings = soup.select('.listing-item')
+            
+            for listing in listings:
+                try:
+                    # Extract basic information
+                    title_elem = listing.select_one('.listing-title')
+                    title = self.clean_text(title_elem.text) if title_elem else None
+                    
+                    price_elem = listing.select_one('.listing-price')
+                    price = self.extract_price(price_elem.text) if price_elem else None
+                    
+                    location_elem = listing.select_one('.listing-location')
+                    location = self.clean_text(location_elem.text) if location_elem else None
+                    
+                    size_elem = listing.select_one('.listing-size')
+                    size = float(size_elem.text.split()[0]) if size_elem else None
+                    
+                    desc_elem = listing.select_one('.listing-description')
+                    description = self.clean_text(desc_elem.text) if desc_elem else None
+                    
+                    url_elem = listing.select_one('a.listing-link')
+                    url = url_elem['href'] if url_elem else None
+                    
+                    if url and not url.startswith('http'):
+                        url = 'https://www.komo.co.il' + url
+                    
+                    if url:  # Only add if we have a valid URL
+                        property_data = Property(
+                            title=title,
+                            price=price,
+                            location=location,
+                            size=size,
+                            description=description,
+                            url=url,
+                            source_website='komo',
+                            property_type='commercial',
+                            date_scraped=datetime.utcnow(),
+                            is_active=True
+                        )
+                        properties.append(property_data)
+                        
+                except Exception as e:
+                    logger.error(f"Error parsing Komo listing: {str(e)}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Error in parse_komo: {str(e)}")
+        
         return properties
 
     async def scrape_urls(self, urls):

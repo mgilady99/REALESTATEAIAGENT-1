@@ -53,3 +53,13 @@ class ScrapingLog(db.Model):
         if self.end_time:
             return (self.end_time - self.start_time).total_seconds()
         return None
+
+class NewsArticle(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(500), nullable=False)
+    url = db.Column(db.String(500), unique=True, nullable=False)
+    source = db.Column(db.String(100), nullable=False)
+    published_date = db.Column(db.DateTime)
+    scraped_date = db.Column(db.DateTime, default=datetime.utcnow)
+    content_hash = db.Column(db.String(64))  # For detecting similar content
+    is_active = db.Column(db.Boolean, default=True)

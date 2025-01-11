@@ -24,8 +24,36 @@ class Config:
     SCRAPING_INTERVAL = int(os.environ.get('SCRAPING_INTERVAL', 3600))  # Default: 1 hour
     KEYWORDS = os.environ.get('KEYWORDS', '').split(',')
     
-    # Default URLs for scraping
-    DEFAULT_URLS = [
+    # News URLs for scraping
+    NEWS_URLS = {
+        'globes': {
+            'name': 'Globes',
+            'url': 'https://www.globes.co.il/news/home.aspx?fid=607',
+            'type': 'news',
+            'language': 'hebrew'
+        },
+        'calcalist': {
+            'name': 'Calcalist Real Estate',
+            'url': 'https://www.calcalist.co.il/real-estate',
+            'type': 'news',
+            'language': 'hebrew'
+        },
+        'themarker': {
+            'name': 'TheMarker Real Estate',
+            'url': 'https://www.themarker.com/realestate',
+            'type': 'news',
+            'language': 'hebrew'
+        },
+        'bizportal': {
+            'name': 'Bizportal Real Estate',
+            'url': 'https://www.bizportal.co.il/realestates/news',
+            'type': 'news',
+            'language': 'hebrew'
+        }
+    }
+    
+    # Property listing URLs
+    LISTING_URLS = [
         'https://www.globes.co.il/GlobesBoard/',
         'https://menivim.net/',
         'https://shorturl.at/Khx3S',  # Homeless Commercial
@@ -36,9 +64,9 @@ class Config:
     ]
     
     # Use environment URLs if provided, otherwise use defaults
-    URLS = os.environ.get('URLS', '').split(',') if os.environ.get('URLS') else DEFAULT_URLS
+    URLS = os.environ.get('URLS', '').split(',') if os.environ.get('URLS') else LISTING_URLS
     
-    # Site-specific configurations
+    # Site-specific configurations for property listings
     SITE_CONFIGS = {
         'globes': {
             'name': 'Globes Board',
