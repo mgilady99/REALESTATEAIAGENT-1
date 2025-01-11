@@ -28,8 +28,23 @@ class Config:
     SCRAPING_INTERVAL = int(os.environ.get('SCRAPING_INTERVAL', 3600))  # Default: 1 hour
     KEYWORDS = os.environ.get('KEYWORDS', '').split(',')
     
+    # Property scraping URLs
+    PROPERTY_URLS = [
+        'https://www.yad2.co.il/realestate/rent',
+        'https://www.onmap.co.il/en/rent',
+        'https://www.homeless.co.il/rent/',
+        'https://www.madlan.co.il/for-rent'
+    ]
+
+    # News scraping URLs
+    NEWS_URLS = [
+        'https://en.globes.co.il/real-estate',
+        'https://www.jpost.com/tags/israeli-real-estate',
+        'https://www.timesofisrael.com/topic/real-estate-in-israel/'
+    ]
+    
     # News URLs for scraping
-    NEWS_URLS = {
+    NEWS_SOURCES = {
         'globes': {
             'name': 'Globes',
             'url': 'https://www.globes.co.il/news/home.aspx?fid=607',

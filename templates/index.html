@@ -10,45 +10,24 @@
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">Real Estate Scraper</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/properties">Properties</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/news">News</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/logs">Logs</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/search-criteria">Search Criteria</a>
-                    </li>
-                </ul>
-            </div>
+        <div class="container">
+            <a class="navbar-brand" href="/"><i class="fas fa-home"></i> Real Estate Scraper</a>
         </div>
     </nav>
 
     <div class="container mt-4">
+        <!-- Scraping Actions -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">Scraping Actions</h5>
-                        <div class="d-flex gap-2">
-                            <button id="scrapeClassified" class="btn btn-primary">
-                                <i class="fas fa-search"></i> Scrape Classified Ads
+                        <div class="d-flex gap-3">
+                            <button id="scrapeClassified" class="btn btn-primary btn-lg">
+                                <i class="fas fa-search"></i> Scrape Property Ads
                             </button>
-                            <button id="scrapeNews" class="btn btn-info text-white">
+                            <button id="scrapeNews" class="btn btn-info btn-lg text-white">
                                 <i class="fas fa-newspaper"></i> Scrape News
-                            </button>
-                            <button id="scrapeFacebook" class="btn btn-primary">
-                                <i class="fab fa-facebook"></i> Scrape Facebook Groups
                             </button>
                         </div>
                     </div>
@@ -56,54 +35,81 @@
             </div>
         </div>
 
+        <!-- Properties Display -->
         <div class="row">
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Search Criteria</h5>
-                        <form id="searchForm">
-                            <!-- Your existing search form content -->
-                        </form>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-8">
+            <div class="col-12">
                 <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">Latest Properties</h5>
-                        {% if properties %}
-                        <div class="table-responsive">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Title</th>
-                                        <th>Price</th>
-                                        <th>Location</th>
-                                        <th>Date Listed</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="properties-table">
-                                    {% for property in properties %}
-                                    <tr>
-                                        <td>{{ property.title }}</td>
-                                        <td>{{ property.price }}</td>
-                                        <td>{{ property.location }}</td>
-                                        <td>{{ property.date_listed }}</td>
-                                        <td>
-                                            <a href="{{ property.url }}" target="_blank" class="btn btn-sm btn-primary">View</a>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                        <div id="propertiesList" class="row">
+                            {% if properties %}
+                                {% for property in properties %}
+                                    <div class="col-md-6 col-lg-4 mb-4">
+                                        <div class="card h-100">
+                                            {% if property.image_url %}
+                                                <img src="{{ property.image_url }}" class="card-img-top" alt="Property Image">
+                                            {% endif %}
+                                            <div class="card-body">
+                                                <h5 class="card-title">{{ property.title }}</h5>
+                                                <p class="card-text">{{ property.description[:200] }}...</p>
+                                                <p class="card-text">
+                                                    <strong>Price:</strong> {{ property.price }}<br>
+                                                    <strong>Location:</strong> {{ property.location }}<br>
+                                                    <strong>Source:</strong> {{ property.source }}
+                                                </p>
+                                                {% if property.url %}
+                                                    <a href="{{ property.url }}" class="btn btn-primary" target="_blank">
+                                                        View Details
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                            <div class="card-footer text-muted">
+                                                Added: {{ property.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="col-12">
+                                    <p class="text-center">Click "Scrape Property Ads" to start collecting property listings.</p>
+                                </div>
+                            {% endif %}
                         </div>
-                        {% else %}
-                        <div class="alert alert-info">
-                            <p class="mb-0">No properties found yet. The scraper will start collecting data soon.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- News Display -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Latest News</h5>
+                        <div id="newsList" class="row">
+                            {% if news_items %}
+                                {% for news in news_items %}
+                                    <div class="col-md-6 mb-4">
+                                        <div class="card h-100">
+                                            <div class="card-body">
+                                                <h5 class="card-title">{{ news.title }}</h5>
+                                                <p class="card-text">{{ news.summary[:200] }}...</p>
+                                                <a href="{{ news.url }}" class="btn btn-info text-white" target="_blank">
+                                                    Read More
+                                                </a>
+                                            </div>
+                                            <div class="card-footer text-muted">
+                                                Published: {{ news.published_at.strftime('%Y-%m-%d %H:%M') }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="col-12">
+                                    <p class="text-center">Click "Scrape News" to fetch latest real estate news.</p>
+                                </div>
+                            {% endif %}
                         </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
