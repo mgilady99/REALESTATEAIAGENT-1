@@ -55,6 +55,7 @@ class Property(db.Model):
     location = db.Column(db.String(255))
     property_type = db.Column(db.String(50))  # E.g., 'apartment', 'office', etc.
     date_listed = db.Column(db.DateTime, default=datetime.utcnow)
+    date_scraped = db.Column(db.DateTime, default=datetime.utcnow)  # Added the missing field
     image_url = db.Column(db.String(1000))
 
     def __repr__(self):
@@ -69,6 +70,7 @@ class Property(db.Model):
             'location': self.location,
             'property_type': self.property_type,
             'date_listed': self.date_listed.isoformat() if self.date_listed else None,
+            'date_scraped': self.date_scraped.isoformat() if self.date_scraped else None,  # Include date_scraped
             'image_url': self.image_url
         }
 
