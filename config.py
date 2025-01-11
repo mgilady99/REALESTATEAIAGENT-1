@@ -23,4 +23,56 @@ class Config:
     # Scraping configuration
     SCRAPING_INTERVAL = int(os.environ.get('SCRAPING_INTERVAL', 3600))  # Default: 1 hour
     KEYWORDS = os.environ.get('KEYWORDS', '').split(',')
-    URLS = os.environ.get('URLS', '').split(',')
+    
+    # Default URLs for scraping
+    DEFAULT_URLS = [
+        'https://www.globes.co.il/GlobesBoard/',
+        'https://menivim.net/',
+        'https://shorturl.at/Khx3S',  # Homeless Commercial
+        'https://shorturl.at/5hMsS',  # Madlan Commercial
+        'https://shorturl.at/0IBGQ',  # Yad2 Commercial Search
+        'https://gevarom.co.il/properties/',
+        'https://www.komo.co.il/'
+    ]
+    
+    # Use environment URLs if provided, otherwise use defaults
+    URLS = os.environ.get('URLS', '').split(',') if os.environ.get('URLS') else DEFAULT_URLS
+    
+    # Site-specific configurations
+    SITE_CONFIGS = {
+        'globes': {
+            'name': 'Globes Board',
+            'base_url': 'https://www.globes.co.il/GlobesBoard/',
+            'type': 'commercial'
+        },
+        'menivim': {
+            'name': 'Menivim',
+            'base_url': 'https://menivim.net/',
+            'type': 'commercial'
+        },
+        'homeless': {
+            'name': 'Homeless Commercial',
+            'base_url': 'https://shorturl.at/Khx3S',
+            'type': 'commercial'
+        },
+        'madlan': {
+            'name': 'Madlan Commercial',
+            'base_url': 'https://shorturl.at/5hMsS',
+            'type': 'commercial'
+        },
+        'yad2': {
+            'name': 'Yad2 Commercial',
+            'base_url': 'https://shorturl.at/0IBGQ',
+            'type': 'commercial'
+        },
+        'gevarom': {
+            'name': 'Geva Rom Commercial',
+            'base_url': 'https://gevarom.co.il/properties/',
+            'type': 'commercial'
+        },
+        'komo': {
+            'name': 'Komo Board',
+            'base_url': 'https://www.komo.co.il/',
+            'type': 'commercial'
+        }
+    }
