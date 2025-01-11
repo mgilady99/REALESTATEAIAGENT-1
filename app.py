@@ -52,7 +52,7 @@ def start_scraper():
     """Initialize and start the scraper"""
     try:
         scraper = RealEstateScraper()
-        urls = app.config.get('URLS', [])
+        urls = app.config.get('PROPERTY_URLS', [])
         if urls and urls[0]:  # Check if URLs list is not empty and first item is not empty
             asyncio.run(scraper.scrape_urls(urls))
         logger.info("Property scraper started successfully")
@@ -63,7 +63,8 @@ def start_news_scraper():
     """Initialize and start the news scraper"""
     try:
         news_scraper = NewsScraperService()
-        news_scraper.start_news_scraping()
+        urls = app.config.get('NEWS_URLS', [])
+        news_scraper.scrape_news(urls)
         logger.info("News scraper started successfully")
     except Exception as e:
         logger.error(f"Error starting news scraper: {str(e)}")
@@ -197,27 +198,50 @@ def news():
         logger.error(f"Error in news route: {str(e)}")
         return render_template('error.html', error=str(e)), 500
 
-@app.route('/scrape')
-async def scrape_properties():
+@app.route('/scrape', methods=['POST'])
+def scrape_properties():
     """Endpoint to trigger property scraping"""
     try:
         scraper = RealEstateScraper()
-        properties = await scraper.scrape_all()
-        return jsonify({'status': 'success', 'count': len(properties)})
+        urls = app.config['PROPERTY_URLS']
+        asyncio.run(scraper.scrape_urls(urls))
+        return jsonify({"status": "success", "message": "Property scraping started"})
     except Exception as e:
-        logger.error(f"Error in scrape_properties: {str(e)}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        logger.error(f"Error in property scraping: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/scrape/news')
-async def scrape_news():
+@app.route('/scrape/news', methods=['POST'])
+def scrape_news():
     """Endpoint to trigger news scraping"""
     try:
-        scraper = NewsScraperService()
-        news_items = await scraper.scrape_all()
-        return jsonify({'status': 'success', 'count': len(news_items)})
+        news_scraper = NewsScraperService()
+        urls = app.config['NEWS_URLS']
+        news_scraper.scrape_news(urls)
+        return jsonify({"status": "success", "message": "News scraping started"})
     except Exception as e:
-        logger.error(f"Error in scrape_news: {str(e)}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        logger.error(f"Error in news scraping: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/urls', methods=['GET'])
+def get_urls():
+    """Get all scraping URLs"""
+    return jsonify({
+        "property_urls": app.config['PROPERTY_URLS'],
+        "news_urls": app.config['NEWS_URLS']
+    })
+
+@app.route('/api/urls', methods=['POST'])
+def update_urls():
+    """Update scraping URLs"""
+    try:
+        data = request.get_json()
+        if 'property_urls' in data:
+            app.config['PROPERTY_URLS'] = data['property_urls']
+        if 'news_urls' in data:
+            app.config['NEWS_URLS'] = data['news_urls']
+        return jsonify({"status": "success", "message": "URLs updated successfully"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
     init_db()
