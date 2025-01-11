@@ -141,3 +141,91 @@ class NewsScraperService:
             
         finally:
             await self.close_session()
+
+    def scrape_news_sync(self, urls):
+        """Synchronous version of scrape_news"""
+        import requests
+        
+        all_news = []
+        session = requests.Session()
+        session.headers.update(self.headers)
+        
+        for url in urls:
+            try:
+                response = session.get(url, timeout=30)
+                response.raise_for_status()
+                
+                html = response.text
+                soup = BeautifulSoup(html, 'html.parser')
+                
+                # Extract news data
+                news_items = self.extract_news_data(soup)
+                
+                for item in news_items:
+                    # Add source URL to the news item
+                    item['source_url'] = url
+                    
+                    # Save to database
+                    news_obj = News(**item)
+                    db.session.add(news_obj)
+                    
+                    all_news.append(item)
+                
+                db.session.commit()
+                
+            except Exception as e:
+                logger.error(f"Error scraping news from {url}: {str(e)}")
+                continue
+        
+        session.close()
+        return all_news
+
+    def extract_news_data(self, soup):
+        # Common article selectors
+        selectors = [
+            'article', '.article', '.post',
+            '[class*="article"]', '[class*="post"]', '[class*="news"]',
+            '.story', '.entry', '.item'
+        ]
+        
+        all_news = []
+        for selector in selectors:
+            articles = soup.select(selector)
+            if articles:
+                for article in articles:
+                    try:
+                        # Extract title
+                        title_elem = article.find(['h1', 'h2', 'h3', 'h4', '.title', '[class*="title"]', '[class*="headline"]'])
+                        title = self.clean_text(title_elem.text) if title_elem else None
+                        
+                        # Extract description
+                        desc_elem = article.find(['p', '.description', '[class*="description"]', '[class*="summary"]', '[class*="excerpt"]'])
+                        description = self.clean_text(desc_elem.text) if desc_elem else None
+                        
+                        # Extract URL
+                        link = article.find('a')
+                        article_url = link.get('href', '') if link else None
+                        
+                        # Extract image
+                        img = article.find('img')
+                        image_url = img.get('src', '') if img else None
+                        
+                        # Only add if we have at least a title
+                        if title:
+                            news_item = {
+                                'title': title,
+                                'description': description,
+                                'url': article_url,
+                                'image_url': image_url
+                            }
+                            all_news.append(news_item)
+                    
+                    except Exception as e:
+                        logger.error(f"Error parsing news article: {str(e)}")
+                        continue
+                
+                # If we found articles using this selector, no need to try others
+                if all_news:
+                    break
+        
+        return all_news

@@ -1,8 +1,10 @@
 aiohttp==3.8.5
 APScheduler==3.10.4
+asgiref==3.7.2
 beautifulsoup4==4.12.2
-Flask==2.3.3
+Flask[async]==2.3.3
 Flask-SQLAlchemy==3.1.1
+Flask-CORS==4.0.0
 google-api-python-client==2.108.0
 google-auth-httplib2==0.1.1
 google-auth-oauthlib==1.1.0

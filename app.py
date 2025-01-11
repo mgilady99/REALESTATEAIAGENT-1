@@ -12,12 +12,14 @@ import pandas as pd
 from config import Config
 import logging
 import asyncio
+from flask_cors import CORS
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # Configure SQLAlchemy
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
@@ -198,136 +200,100 @@ def news():
         logger.error(f"Error in news route: {str(e)}")
         return render_template('error.html', error=str(e)), 500
 
+@app.route('/api/urls', methods=['GET'])
+def get_urls():
+    """Get all scraping URLs"""
+    try:
+        urls = load_urls()
+        return jsonify({
+            'property_urls': urls.get('property_urls', []),
+            'news_urls': urls.get('news_urls', [])
+        })
+    except Exception as e:
+        logger.error(f"Error getting URLs: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/scrape', methods=['POST'])
 def scrape_properties():
     """Endpoint to trigger property scraping"""
     try:
         scraper = RealEstateScraper()
-        urls = app.config['PROPERTY_URLS']
-        asyncio.run(scraper.scrape_urls(urls))
-        return jsonify({"status": "success", "message": "Property scraping started"})
+        urls = load_urls().get('property_urls', [])
+        
+        if not urls:
+            return jsonify({
+                'success': False,
+                'message': 'No property URLs configured. Please add URLs in the URL manager.'
+            })
+        
+        try:
+            # Run synchronously instead of async
+            properties = scraper.scrape_urls_sync(urls)
+            
+            if not properties:
+                return jsonify({
+                    'success': False,
+                    'message': 'No properties found'
+                })
+            
+            return jsonify({
+                'success': True,
+                'properties': properties
+            })
+        except Exception as e:
+            logger.error(f"Error in property scraping: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f"Scraping error: {str(e)}"
+            }), 500
+            
     except Exception as e:
-        logger.error(f"Error in property scraping: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        logger.error(f"Error in scrape_properties endpoint: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Server error: {str(e)}"
+        }), 500
 
 @app.route('/scrape/news', methods=['POST'])
 def scrape_news():
     """Endpoint to trigger news scraping"""
     try:
         news_scraper = NewsScraperService()
-        urls = app.config['NEWS_URLS']
-        news_scraper.scrape_news(urls)
-        return jsonify({"status": "success", "message": "News scraping started"})
-    except Exception as e:
-        logger.error(f"Error in news scraping: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-@app.route('/api/urls', methods=['GET'])
-def get_urls():
-    """Get all scraping URLs"""
-    return jsonify({
-        "property_urls": app.config['PROPERTY_URLS'],
-        "news_urls": app.config['NEWS_URLS']
-    })
-
-@app.route('/api/urls', methods=['POST'])
-def update_urls():
-    """Update scraping URLs"""
-    try:
-        data = request.get_json()
-        if 'property_urls' in data:
-            app.config['PROPERTY_URLS'] = data['property_urls']
-        if 'news_urls' in data:
-            app.config['NEWS_URLS'] = data['news_urls']
-        return jsonify({"status": "success", "message": "URLs updated successfully"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-URLS_FILE = 'scraping_urls.json'
-
-def load_urls():
-    try:
-        if os.path.exists(URLS_FILE):
-            with open(URLS_FILE, 'r') as f:
-                return json.load(f)
-        return {'property_urls': [], 'news_urls': []}
-    except Exception as e:
-        app.logger.error(f"Error loading URLs: {e}")
-        return {'property_urls': [], 'news_urls': []}
-
-def save_urls(urls):
-    try:
-        with open(URLS_FILE, 'w') as f:
-            json.dump(urls, f)
-        return True
-    except Exception as e:
-        app.logger.error(f"Error saving URLs: {e}")
-        return False
-
-@app.route('/api/urls', methods=['GET', 'POST'])
-def manage_urls():
-    if request.method == 'GET':
-        return jsonify(load_urls())
-    
-    if request.method == 'POST':
-        data = request.json
-        if save_urls(data):
-            return jsonify({'success': True})
-        return jsonify({'success': False, 'message': 'Failed to save URLs'})
-
-@app.route('/scrape', methods=['POST'])
-async def scrape_properties():
-    try:
-        urls = load_urls()
-        property_urls = urls.get('property_urls', [])
+        urls = load_urls().get('news_urls', [])
         
-        if not property_urls:
-            return jsonify({
-                'success': False,
-                'message': 'No property URLs configured. Please add URLs in the URL manager.'
-            })
-        
-        scraper = RealEstateScraper()
-        properties = await scraper.scrape_urls(property_urls)
-        
-        return jsonify({
-            'success': True,
-            'properties': properties
-        })
-        
-    except Exception as e:
-        app.logger.error(f"Error in scrape_properties: {e}")
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        })
-
-@app.route('/scrape/news', methods=['POST'])
-async def scrape_news():
-    try:
-        urls = load_urls()
-        news_urls = urls.get('news_urls', [])
-        
-        if not news_urls:
+        if not urls:
             return jsonify({
                 'success': False,
                 'message': 'No news URLs configured. Please add URLs in the URL manager.'
             })
         
-        news_scraper = NewsScraperService()
-        news_articles = await news_scraper.scrape_news(news_urls)
-        
-        return jsonify({
-            'success': True,
-            'news': news_articles
-        })
-        
+        try:
+            # Run synchronously
+            news = news_scraper.scrape_news_sync(urls)
+            
+            if not news:
+                return jsonify({
+                    'success': False,
+                    'message': 'No news found'
+                })
+            
+            return jsonify({
+                'success': True,
+                'news': news
+            })
+        except Exception as e:
+            logger.error(f"Error in news scraping: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f"Scraping error: {str(e)}"
+            }), 500
+            
     except Exception as e:
-        app.logger.error(f"Error in scrape_news: {e}")
+        logger.error(f"Error in scrape_news endpoint: {str(e)}")
         return jsonify({
             'success': False,
-            'message': str(e)
-        })
+            'message': f"Server error: {str(e)}"
+        }), 500
 
 @app.route('/api/properties', methods=['GET'])
 def get_properties():
@@ -356,6 +322,27 @@ def get_news():
             'success': False,
             'message': str(e)
         })
+
+URLS_FILE = 'scraping_urls.json'
+
+def load_urls():
+    try:
+        if os.path.exists(URLS_FILE):
+            with open(URLS_FILE, 'r') as f:
+                return json.load(f)
+        return {'property_urls': [], 'news_urls': []}
+    except Exception as e:
+        app.logger.error(f"Error loading URLs: {e}")
+        return {'property_urls': [], 'news_urls': []}
+
+def save_urls(urls):
+    try:
+        with open(URLS_FILE, 'w') as f:
+            json.dump(urls, f)
+        return True
+    except Exception as e:
+        app.logger.error(f"Error saving URLs: {e}")
+        return False
 
 if __name__ == '__main__':
     init_db()

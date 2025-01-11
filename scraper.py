@@ -191,6 +191,47 @@ class RealEstateScraper:
         finally:
             await self.close_session()
 
+    def scrape_urls_sync(self, urls):
+        """Synchronous version of scrape_urls"""
+        import requests
+        
+        properties = []
+        session = requests.Session()
+        session.headers.update(self.headers)
+        
+        for url in urls:
+            try:
+                response = session.get(url)
+                response.raise_for_status()
+                
+                soup = BeautifulSoup(response.text, 'html.parser')
+                property_data = self.extract_property_data(soup, url)
+                
+                if property_data:
+                    properties.append(property_data)
+                    
+                    # Save to database
+                    with current_app.app_context():
+                        property_obj = Property(**property_data)
+                        db.session.add(property_obj)
+                        db.session.commit()
+                        
+                        # Log the scraping
+                        log = ScrapingLog(url=url, status='success')
+                        db.session.add(log)
+                        db.session.commit()
+                        
+            except Exception as e:
+                logger.error(f"Error scraping {url}: {str(e)}")
+                # Log the error
+                with current_app.app_context():
+                    log = ScrapingLog(url=url, status='error', error_message=str(e))
+                    db.session.add(log)
+                    db.session.commit()
+                
+        session.close()
+        return properties
+
     def start_scraping(self):
         """Start the scraping process"""
         urls = current_app.config['URLS']
