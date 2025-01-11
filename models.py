@@ -1,17 +1,15 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
-class Property(db.Model):
+class SearchCriteria(https://www.globes.co.il/GlobesBoard/			):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(500))
-    price = db.Column(db.Float)
-    location = db.Column(db.String(500))
-    url = db.Column(db.String(1000), unique=True)
-    image_url = db.Column(db.String(1000))
-    source = db.Column(db.String(100))
-    date_scraped = db.Column(db.DateTime, default=datetime.utcnow)
+    criteria_name = db.Column(db.String(255), nullable=False)
+    # Add other fields as required
+
+
 
     def to_dict(self):
         return {
@@ -45,7 +43,7 @@ class News(db.Model):
             'date_scraped': self.date_scraped.isoformat() if self.date_scraped else None
         }
 
-class ScrapingLog(db.Model):
+class ScrapingLog(https://www.globes.co.il/GlobesBoard/			):
     id = db.Column(db.Integer, primary_key=True)
     start_time = db.Column(db.DateTime, default=datetime.utcnow)
     end_time = db.Column(db.DateTime)
