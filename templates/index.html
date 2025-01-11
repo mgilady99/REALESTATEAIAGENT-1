@@ -23,6 +23,9 @@
         .url-actions {
             margin-left: auto;
         }
+        .card:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -76,15 +79,17 @@
                                     <div class="col-md-6 col-lg-4 mb-4">
                                         <div class="card h-100">
                                             {% if property.image_url %}
-                                                <img src="{{ property.image_url }}" class="card-img-top" alt="Property Image">
+                                                <img src="{{ property.image_url }}" class="card-img-top" alt="{{ property.title }}">
+                                            {% else %}
+                                                <img src="/static/images/placeholder.png" class="card-img-top" alt="No image available">
                                             {% endif %}
                                             <div class="card-body">
                                                 <h5 class="card-title">{{ property.title }}</h5>
                                                 <p class="card-text">{{ property.description[:200] }}...</p>
                                                 <p class="card-text">
-                                                    <strong>Price:</strong> {{ property.price }}<br>
-                                                    <strong>Location:</strong> {{ property.location }}<br>
-                                                    <strong>Source:</strong> {{ property.source }}
+                                                    <strong>Price:</strong> {{ property.price or "N/A" }}<br>
+                                                    <strong>Location:</strong> {{ property.location or "N/A" }}<br>
+                                                    <strong>Source:</strong> {{ property.source or "N/A" }}
                                                 </p>
                                                 {% if property.url %}
                                                     <a href="{{ property.url }}" class="btn btn-primary" target="_blank">
@@ -93,7 +98,7 @@
                                                 {% endif %}
                                             </div>
                                             <div class="card-footer text-muted">
-                                                Added: {{ property.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                                Added: {{ property.created_at.strftime('%Y-%m-%d %H:%M') if property.created_at else "Unknown" }}
                                             </div>
                                         </div>
                                     </div>
@@ -128,7 +133,7 @@
                                                 </a>
                                             </div>
                                             <div class="card-footer text-muted">
-                                                Published: {{ news.published_at.strftime('%Y-%m-%d %H:%M') }}
+                                                Published: {{ news.published_at.strftime('%Y-%m-%d %H:%M') if news.published_at else "Unknown" }}
                                             </div>
                                         </div>
                                     </div>
@@ -168,7 +173,7 @@
 
                     <!-- News URLs -->
                     <div>
-                        <h6>News URLs</h6>
+                        <h6>	https://www.bizportal.co.il/commercialrealestate	</h6>
                         <div class="url-list mb-2" id="newsUrlsList"></div>
                         <div class="input-group">
                             <input type="text" class="form-control" id="newNewsUrl" placeholder="Enter new news URL">
