@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate  # Import Migrate
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 import os
@@ -26,6 +27,9 @@ app.config.from_object(Config)
 
 # Initialize extensions
 db.init_app(app)
+
+# Initialize Migrate with the app and db object
+migrate = Migrate(app, db)
 
 # Ensure the instance folder exists
 try:
