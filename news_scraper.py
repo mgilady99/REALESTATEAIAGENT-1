@@ -42,79 +42,8 @@ class NewsScraperService:
         """Check if two titles are similar using SequenceMatcher"""
         return SequenceMatcher(None, title1.lower(), title2.lower()).ratio() > threshold
 
-    async def scrape_globes_news(self, soup):
-        articles = []
-        try:
-            news_items = soup.select('.news-item-content')
-            for item in news_items:
-                title_elem = item.select_one('.news-item-title')
-                if title_elem and 'נדל"ן' in title_elem.text:
-                    title = self.clean_text(title_elem.text)
-                    url = 'https://www.globes.co.il' + title_elem.find('a')['href']
-                    articles.append({
-                        'title': title,
-                        'url': url,
-                        'source': 'globes'
-                    })
-        except Exception as e:
-            logger.error(f"Error scraping Globes news: {str(e)}")
-        return articles
-
-    async def scrape_calcalist_news(self, soup):
-        articles = []
-        try:
-            news_items = soup.select('.real-estate-item')
-            for item in news_items:
-                title_elem = item.select_one('.title')
-                if title_elem:
-                    title = self.clean_text(title_elem.text)
-                    url = 'https://www.calcalist.co.il' + title_elem.find('a')['href']
-                    articles.append({
-                        'title': title,
-                        'url': url,
-                        'source': 'calcalist'
-                    })
-        except Exception as e:
-            logger.error(f"Error scraping Calcalist news: {str(e)}")
-        return articles
-
-    async def scrape_themarker_news(self, soup):
-        articles = []
-        try:
-            news_items = soup.select('.realestate-item')
-            for item in news_items:
-                title_elem = item.select_one('.title')
-                if title_elem:
-                    title = self.clean_text(title_elem.text)
-                    url = 'https://www.themarker.com' + title_elem.find('a')['href']
-                    articles.append({
-                        'title': title,
-                        'url': url,
-                        'source': 'themarker'
-                    })
-        except Exception as e:
-            logger.error(f"Error scraping TheMarker news: {str(e)}")
-        return articles
-
-    async def scrape_bizportal_news(self, soup):
-        articles = []
-        try:
-            news_items = soup.select('.news-item')
-            for item in news_items:
-                title_elem = item.select_one('.title')
-                if title_elem:
-                    title = self.clean_text(title_elem.text)
-                    url = title_elem.find('a')['href']
-                    articles.append({
-                        'title': title,
-                        'url': url,
-                        'source': 'bizportal'
-                    })
-        except Exception as e:
-            logger.error(f"Error scraping Bizportal news: {str(e)}")
-        return articles
-
-    async def scrape_news_source(self, source_key, url):
+    async def scrape_url(self, url):
+        """Scrape a single news URL"""
         try:
             session = await self.create_session()
             async with session.get(url) as response:
@@ -123,18 +52,40 @@ class NewsScraperService:
                     return []
 
                 html = await response.text()
-                soup = BeautifulSoup(html, 'lxml')
+                soup = BeautifulSoup(html, 'html.parser')
                 
-                if source_key == 'globes':
-                    return await self.scrape_globes_news(soup)
-                elif source_key == 'calcalist':
-                    return await self.scrape_calcalist_news(soup)
-                elif source_key == 'themarker':
-                    return await self.scrape_themarker_news(soup)
-                elif source_key == 'bizportal':
-                    return await self.scrape_bizportal_news(soup)
+                articles = []
+                # Try different selectors for news articles
+                selectors = [
+                    'article', '.article', '.news-item', '.post',
+                    '[class*="article"]', '[class*="news"]'
+                ]
                 
-                return []
+                for selector in selectors:
+                    items = soup.select(selector)
+                    if items:
+                        for item in items:
+                            # Try to find title and link
+                            title_elem = item.find(['h1', 'h2', 'h3', '.title', '[class*="title"]'])
+                            link_elem = item.find('a')
+                            
+                            if title_elem and link_elem:
+                                title = self.clean_text(title_elem.text)
+                                url = link_elem.get('href', '')
+                                
+                                # Make URL absolute if it's relative
+                                if url.startswith('/'):
+                                    url = f"https://{response.url.host}{url}"
+                                elif not url.startswith('http'):
+                                    url = f"{response.url.scheme}://{response.url.host}/{url.lstrip('/')}"
+                                
+                                articles.append({
+                                    'title': title,
+                                    'url': url,
+                                    'source': response.url.host
+                                })
+                
+                return articles
 
         except Exception as e:
             logger.error(f"Error scraping {url}: {str(e)}")
@@ -168,9 +119,10 @@ class NewsScraperService:
             all_articles = []
             tasks = []
             
-            # Create tasks for each news source
-            for source_key, config in current_app.config['NEWS_URLS'].items():
-                tasks.append(self.scrape_news_source(source_key, config['url']))
+            # Create tasks for each news URL
+            urls = current_app.config.get('NEWS_URLS', [])
+            for url in urls:
+                tasks.append(self.scrape_url(url))
             
             # Run all tasks concurrently
             results = await asyncio.gather(*tasks)
@@ -206,6 +158,8 @@ class NewsScraperService:
         finally:
             await self.close_session()
 
-    def start_news_scraping(self):
+    def scrape_news(self, urls=None):
         """Start the news scraping process"""
+        if urls:
+            current_app.config['NEWS_URLS'] = urls
         return asyncio.run(self.scrape_all_news())

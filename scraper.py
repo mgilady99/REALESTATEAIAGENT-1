@@ -35,20 +35,21 @@ class RealEstateScraper:
     def extract_price(self, text):
         if not text:
             return None
-        price_match = re.search(r'[\d,]+', text)
+        # Look for price patterns (handles both ₪ and $ formats)
+        price_match = re.search(r'[\d,]+(?:\.\d{2})?(?=\s*[₪$])|(?<=[$₪]\s*)[\d,]+(?:\.\d{2})?', text)
         if price_match:
-            return int(price_match.group().replace(',', ''))
+            return price_match.group().replace(',', '')
         return None
+
+    def extract_location(self, text):
+        if not text:
+            return None
+        # Remove common words and clean up
+        location = re.sub(r'(?i)(apartment|house|property|in|at|near|next to)', '', text)
+        return self.clean_text(location)
 
     async def scrape_url(self, url):
         try:
-            site_key = next((key for key, config in current_app.config['SITE_CONFIGS'].items() 
-                           if config['base_url'] in url), None)
-            
-            if not site_key:
-                logger.warning(f"No configuration found for URL: {url}")
-                return []
-
             session = await self.create_session()
             async with session.get(url) as response:
                 if response.status != 200:
@@ -56,24 +57,72 @@ class RealEstateScraper:
                     return []
 
                 html = await response.text()
-                soup = BeautifulSoup(html, 'lxml')
+                soup = BeautifulSoup(html, 'html.parser')
                 
                 properties = []
                 
-                if site_key == 'globes':
-                    properties = await self.parse_globes(soup)
-                elif site_key == 'menivim':
-                    properties = await self.parse_menivim(soup)
-                elif site_key == 'homeless':
-                    properties = await self.parse_homeless(soup)
-                elif site_key == 'madlan':
-                    properties = await self.parse_madlan(soup)
-                elif site_key == 'yad2':
-                    properties = await self.parse_yad2(soup)
-                elif site_key == 'gevarom':
-                    properties = await self.parse_gevarom(soup)
-                elif site_key == 'komo':
-                    properties = await self.parse_komo(soup)
+                # Common property listing selectors
+                selectors = [
+                    '.property-item', '.listing-item', '.real-estate-item',
+                    '[class*="property"]', '[class*="listing"]', '[class*="apartment"]',
+                    'article', '.card', '.item'
+                ]
+                
+                for selector in selectors:
+                    listings = soup.select(selector)
+                    if listings:
+                        for listing in listings:
+                            try:
+                                # Extract title
+                                title_elem = listing.find(['h1', 'h2', 'h3', 'h4', '.title', '[class*="title"]'])
+                                title = self.clean_text(title_elem.text) if title_elem else None
+                                
+                                # Extract price
+                                price_elem = listing.find(text=re.compile(r'[$₪]\s*[\d,]+|[\d,]+\s*[$₪]'))
+                                price = self.extract_price(price_elem) if price_elem else None
+                                
+                                # Extract location
+                                location_elem = listing.find(['address', '.location', '[class*="location"]'])
+                                location = self.extract_location(location_elem.text) if location_elem else None
+                                
+                                # Extract URL
+                                link = listing.find('a')
+                                url = link.get('href', '') if link else None
+                                
+                                # Make URL absolute if it's relative
+                                if url and url.startswith('/'):
+                                    url = f"https://{response.url.host}{url}"
+                                elif url and not url.startswith('http'):
+                                    url = f"{response.url.scheme}://{response.url.host}/{url.lstrip('/')}"
+                                
+                                # Extract image
+                                img = listing.find('img')
+                                image_url = img.get('src', '') if img else None
+                                
+                                # Make image URL absolute if it's relative
+                                if image_url and image_url.startswith('/'):
+                                    image_url = f"https://{response.url.host}{image_url}"
+                                elif image_url and not image_url.startswith('http'):
+                                    image_url = f"{response.url.scheme}://{response.url.host}/{image_url.lstrip('/')}"
+                                
+                                # Only add if we have at least title and either price or location
+                                if title and (price or location):
+                                    properties.append({
+                                        'title': title,
+                                        'price': price,
+                                        'location': location,
+                                        'url': url,
+                                        'image_url': image_url,
+                                        'source': response.url.host
+                                    })
+                            
+                            except Exception as e:
+                                logger.error(f"Error parsing listing: {str(e)}")
+                                continue
+                        
+                        # If we found properties using this selector, no need to try others
+                        if properties:
+                            break
                 
                 return properties
 
@@ -81,310 +130,53 @@ class RealEstateScraper:
             logger.error(f"Error scraping {url}: {str(e)}")
             return []
 
-    async def parse_globes(self, soup):
-        properties = []
-        # Add specific parsing logic for Globes
-        return properties
-
-    async def parse_menivim(self, soup):
-        properties = []
-        # Add specific parsing logic for Menivim
-        return properties
-
-    async def parse_homeless(self, soup):
-        properties = []
-        try:
-            # Find all property listings
-            listings = soup.select('.property-item')
-            
-            for listing in listings:
-                try:
-                    # Extract basic information
-                    title_elem = listing.select_one('.property-title')
-                    title = self.clean_text(title_elem.text) if title_elem else None
-                    
-                    price_elem = listing.select_one('.property-price')
-                    price = self.extract_price(price_elem.text) if price_elem else None
-                    
-                    location_elem = listing.select_one('.property-location')
-                    location = self.clean_text(location_elem.text) if location_elem else None
-                    
-                    details_elem = listing.select_one('.property-details')
-                    description = self.clean_text(details_elem.text) if details_elem else None
-                    
-                    url_elem = listing.select_one('a.property-link')
-                    url = url_elem['href'] if url_elem else None
-                    
-                    if url:  # Only add if we have a valid URL
-                        property_data = Property(
-                            title=title,
-                            price=price,
-                            location=location,
-                            description=description,
-                            url=url,
-                            source_website='homeless',
-                            property_type='commercial',
-                            date_scraped=datetime.utcnow(),
-                            is_active=True
-                        )
-                        properties.append(property_data)
-                        
-                except Exception as e:
-                    logger.error(f"Error parsing Homeless listing: {str(e)}")
-                    continue
-                    
-        except Exception as e:
-            logger.error(f"Error in parse_homeless: {str(e)}")
-        
-        return properties
-
-    async def parse_madlan(self, soup):
-        properties = []
-        try:
-            # Find all property listings
-            listings = soup.select('.property-card')
-            
-            for listing in listings:
-                try:
-                    # Extract basic information
-                    title_elem = listing.select_one('.property-title')
-                    title = self.clean_text(title_elem.text) if title_elem else None
-                    
-                    price_elem = listing.select_one('.property-price')
-                    price = self.extract_price(price_elem.text) if price_elem else None
-                    
-                    location_elem = listing.select_one('.property-location')
-                    location = self.clean_text(location_elem.text) if location_elem else None
-                    
-                    size_elem = listing.select_one('.property-size')
-                    size = float(size_elem.text.split()[0]) if size_elem else None
-                    
-                    url_elem = listing.select_one('a.property-link')
-                    url = url_elem['href'] if url_elem else None
-                    
-                    if url and not url.startswith('http'):
-                        url = 'https://www.madlan.co.il' + url
-                    
-                    if url:  # Only add if we have a valid URL
-                        property_data = Property(
-                            title=title,
-                            price=price,
-                            location=location,
-                            size=size,
-                            url=url,
-                            source_website='madlan',
-                            property_type='commercial',
-                            date_scraped=datetime.utcnow(),
-                            is_active=True
-                        )
-                        properties.append(property_data)
-                        
-                except Exception as e:
-                    logger.error(f"Error parsing Madlan listing: {str(e)}")
-                    continue
-                    
-        except Exception as e:
-            logger.error(f"Error in parse_madlan: {str(e)}")
-        
-        return properties
-
-    async def parse_yad2(self, soup):
-        properties = []
-        try:
-            # Find all property listings
-            listings = soup.select('div[data-test-id="feed-item"]')
-            
-            for listing in listings:
-                try:
-                    # Extract basic information
-                    title = self.clean_text(listing.select_one('span[data-test-id="feed-item-title"]').text)
-                    price_elem = listing.select_one('div[data-test-id="feed-item-price"]')
-                    price = self.extract_price(price_elem.text) if price_elem else None
-                    
-                    # Extract location
-                    location_elem = listing.select_one('div[data-test-id="feed-item-subtitle"]')
-                    location = self.clean_text(location_elem.text) if location_elem else None
-                    
-                    # Extract size
-                    size_elem = listing.select_one('div[data-test-id="feed-item-size"]')
-                    size = float(size_elem.text.split()[0]) if size_elem else None
-                    
-                    # Extract URL
-                    url_elem = listing.select_one('a[data-test-id="feed-item-link"]')
-                    url = 'https://www.yad2.co.il' + url_elem['href'] if url_elem else None
-                    
-                    # Extract description
-                    desc_elem = listing.select_one('div[data-test-id="feed-item-desc"]')
-                    description = self.clean_text(desc_elem.text) if desc_elem else None
-                    
-                    if url:  # Only add if we have a valid URL
-                        property_data = Property(
-                            title=title,
-                            price=price,
-                            location=location,
-                            size=size,
-                            url=url,
-                            description=description,
-                            source_website='yad2',
-                            property_type='commercial',
-                            date_scraped=datetime.utcnow(),
-                            is_active=True
-                        )
-                        properties.append(property_data)
-                        
-                except Exception as e:
-                    logger.error(f"Error parsing Yad2 listing: {str(e)}")
-                    continue
-                    
-        except Exception as e:
-            logger.error(f"Error in parse_yad2: {str(e)}")
-        
-        return properties
-
-    async def parse_gevarom(self, soup):
-        properties = []
-        try:
-            # Find all property listings
-            listings = soup.select('.property-listing')
-            
-            for listing in listings:
-                try:
-                    # Extract basic information
-                    title_elem = listing.select_one('.property-title')
-                    title = self.clean_text(title_elem.text) if title_elem else None
-                    
-                    price_elem = listing.select_one('.property-price')
-                    price = self.extract_price(price_elem.text) if price_elem else None
-                    
-                    location_elem = listing.select_one('.property-location')
-                    location = self.clean_text(location_elem.text) if location_elem else None
-                    
-                    size_elem = listing.select_one('.property-size')
-                    size = float(size_elem.text.split()[0]) if size_elem else None
-                    
-                    desc_elem = listing.select_one('.property-description')
-                    description = self.clean_text(desc_elem.text) if desc_elem else None
-                    
-                    url_elem = listing.select_one('a.property-link')
-                    url = url_elem['href'] if url_elem else None
-                    
-                    if url and not url.startswith('http'):
-                        url = 'https://gevarom.co.il' + url
-                    
-                    if url:  # Only add if we have a valid URL
-                        property_data = Property(
-                            title=title,
-                            price=price,
-                            location=location,
-                            size=size,
-                            description=description,
-                            url=url,
-                            source_website='gevarom',
-                            property_type='commercial',
-                            date_scraped=datetime.utcnow(),
-                            is_active=True
-                        )
-                        properties.append(property_data)
-                        
-                except Exception as e:
-                    logger.error(f"Error parsing Gevarom listing: {str(e)}")
-                    continue
-                    
-        except Exception as e:
-            logger.error(f"Error in parse_gevarom: {str(e)}")
-        
-        return properties
-
-    async def parse_komo(self, soup):
-        properties = []
-        try:
-            # Find all property listings
-            listings = soup.select('.listing-item')
-            
-            for listing in listings:
-                try:
-                    # Extract basic information
-                    title_elem = listing.select_one('.listing-title')
-                    title = self.clean_text(title_elem.text) if title_elem else None
-                    
-                    price_elem = listing.select_one('.listing-price')
-                    price = self.extract_price(price_elem.text) if price_elem else None
-                    
-                    location_elem = listing.select_one('.listing-location')
-                    location = self.clean_text(location_elem.text) if location_elem else None
-                    
-                    size_elem = listing.select_one('.listing-size')
-                    size = float(size_elem.text.split()[0]) if size_elem else None
-                    
-                    desc_elem = listing.select_one('.listing-description')
-                    description = self.clean_text(desc_elem.text) if desc_elem else None
-                    
-                    url_elem = listing.select_one('a.listing-link')
-                    url = url_elem['href'] if url_elem else None
-                    
-                    if url and not url.startswith('http'):
-                        url = 'https://www.komo.co.il' + url
-                    
-                    if url:  # Only add if we have a valid URL
-                        property_data = Property(
-                            title=title,
-                            price=price,
-                            location=location,
-                            size=size,
-                            description=description,
-                            url=url,
-                            source_website='komo',
-                            property_type='commercial',
-                            date_scraped=datetime.utcnow(),
-                            is_active=True
-                        )
-                        properties.append(property_data)
-                        
-                except Exception as e:
-                    logger.error(f"Error parsing Komo listing: {str(e)}")
-                    continue
-                    
-        except Exception as e:
-            logger.error(f"Error in parse_komo: {str(e)}")
-        
-        return properties
-
     async def scrape_urls(self, urls):
-        log = ScrapingLog(start_time=datetime.utcnow())
+        """Scrape multiple URLs concurrently"""
         try:
-            all_properties = []
-            tasks = [self.scrape_url(url) for url in urls]
+            tasks = []
+            for url in urls:
+                tasks.append(self.scrape_url(url))
+            
             results = await asyncio.gather(*tasks)
             
+            all_properties = []
             for properties in results:
                 all_properties.extend(properties)
             
             # Save to database
-            new_count = 0
             for prop in all_properties:
-                existing = Property.query.filter_by(url=prop.url).first()
+                # Check if property already exists (based on URL)
+                existing = Property.query.filter_by(url=prop['url']).first() if prop['url'] else None
+                
                 if not existing:
-                    db.session.add(prop)
-                    new_count += 1
+                    new_property = Property(
+                        title=prop['title'],
+                        price=prop['price'],
+                        location=prop['location'],
+                        url=prop['url'],
+                        image_url=prop['image_url'],
+                        source=prop['source'],
+                        date_scraped=datetime.utcnow()
+                    )
+                    db.session.add(new_property)
+            
+            # Log the scraping
+            log = ScrapingLog(
+                timestamp=datetime.utcnow(),
+                properties_found=len(all_properties)
+            )
+            db.session.add(log)
             
             db.session.commit()
+            logger.info(f"Scraped {len(all_properties)} properties")
             
-            # Update log
-            log.end_time = datetime.utcnow()
-            log.status = 'success'
-            log.items_scraped = len(all_properties)
-            log.items_new = new_count
+            return all_properties
             
         except Exception as e:
             logger.error(f"Error in scrape_urls: {str(e)}")
-            log.status = 'failed'
-            log.error_message = str(e)
-            log.end_time = datetime.utcnow()
-        
+            return []
         finally:
             await self.close_session()
-            db.session.add(log)
-            db.session.commit()
 
     def start_scraping(self):
         """Start the scraping process"""
